@@ -1,0 +1,76 @@
+from pathlib import Path
+import numpy as np
+import pickle
+
+from PIL import Image
+import torch
+from torchvision import transforms
+from torch.utils.data import Dataset, DataLoader
+
+import v_u_net.hyperparams as hp
+from pose_drawer.pose_drawer import Pose_Drawer
+from v_u_net.localise_joint_appearances import get_localised_joints
+
+
+class V_U_Net_Dataset(Dataset):
+    """
+    Dataset consists of pairs of original and pose extracted images
+    """
+
+    def __init__(self, root_data_dir, overtrain=False):
+        """
+        Args:
+            root_data_dir (str): Path to directory containing data.
+            overtrain (bool): If True, same img is always returned.
+        """
+        self.overtrain = overtrain
+
+        self.root_data_dir = Path(root_data_dir)
+        index_path = self.root_data_dir/'index.p'
+        with open(str(index_path), 'rb') as in_f:
+            self.data = pickle.load(in_f)
+
+        self.trans = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ])
+
+        self.joints_to_localise = [joint.value for joint in hp.joints_to_localise]
+        self.pose_drawer = Pose_Drawer()
+
+    def __len__(self):
+        return len(self.data['imgs'])
+
+    def __getitem__(self, index):
+        if self.overtrain:
+            index = 0
+
+        orig_img, pose_img, localised_joints = self.prepare_input_data(index)
+        orig_img = self.trans(orig_img)
+        pose_img = self.trans(pose_img).float()
+
+        # Need to normalise one by one as lots of the images are black
+        localised_joints = [self.trans(joint_img) for joint_img in localised_joints]
+        localised_joints = torch.cat(localised_joints, dim=0).float()
+
+        return {'app_img': orig_img,
+                'pose_img': pose_img,
+                'localised_joints': localised_joints}
+
+    def prepare_input_data(self, index):
+        """
+        Prepares data for input into the model.
+        DOES NOT transform into PyTorch tensor and normalise.
+        Args:
+            index (int): index of datapoint to prepare.
+        """
+        img_path = self.root_data_dir/self.data['imgs'][index]
+        orig_img = Image.open(str(img_path))
+
+        joint_raw_pos = self.data['joints'][index]
+        joint_pixel_pos = (joint_raw_pos*hp.image_edge_size).astype('int')
+
+        pose_img = self.pose_drawer.draw_pose_from_keypoints(joint_pixel_pos)
+        localised_joints = get_localised_joints(orig_img, self.joints_to_localise, joint_pixel_pos)
+
+        return orig_img, pose_img, localised_joints

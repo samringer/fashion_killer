@@ -1,0 +1,4 @@
+opencv-python==3.4.3.18
+numpy==1.15.1
+torch==1.0.0.dev20181014
+torchvision==0.2.1
