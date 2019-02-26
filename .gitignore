@@ -4,3 +4,4 @@ result.png
 Workspace_Old.ipynb
 SandBox.ipynb
 .pytest_cache/
+*.pkl
