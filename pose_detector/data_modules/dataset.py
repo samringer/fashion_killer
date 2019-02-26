@@ -290,7 +290,7 @@ def _create_heat_map(keypoint, edge_size, sigma=20):
         for col_num in range(edge_size):
             dist_from_keypoint = (row_num-x)**2 + (col_num-y)**2
             exponent = dist_from_keypoint/(sigma**2)
-            # The 0.9 is a label smoothing.
+            # The 0.9 is label smoothing.
             heat = math.e**(-exponent) * 0.9
             heat_map[col_num][row_num] = heat
     return heat_map

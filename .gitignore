@@ -1,0 +1,6 @@
+__pycache__/
+result.png
+.ipynb_checkpoints
+Workspace_Old.ipynb
+SandBox.ipynb
+.pytest_cache/

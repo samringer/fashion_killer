@@ -24,7 +24,7 @@ class Pose_Settings():
         self.connection_colors = [[i/256 for i in j] for j in connection_colors_orig]
         self.joint_colors = [[i/256 for i in j] for j in joint_colors_orig]
 
-        self.keypoint_from_heatmap_threshold = 0.6
+        self.keypoint_from_heatmap_threshold = 0.1
 
         self.desired_connections = {
             frozenset([JointType.Neck, JointType.RightWaist]),
@@ -50,19 +50,19 @@ class Pose_Settings():
 class JointType(IntEnum):
     Nose = 0
     Neck = 1
-    RightShoulder = 2
-    RightElbow = 3
-    RightHand = 4
-    LeftShoulder = 5
-    LeftElbow = 6
-    LeftHand = 7
-    RightWaist = 8
-    RightKnee = 9
-    RightFoot = 10
-    LeftWaist = 11
-    LeftKnee = 12
-    LeftFoot = 13
-    RightEye = 14
-    LeftEye = 15
-    RightEar = 16
-    LeftEar = 17
+    LeftEye = 2
+    RightEye = 3
+    LeftEar = 4
+    RightEar = 5
+    LeftShoulder = 6
+    RightShoulder = 7
+    LeftElbow = 8
+    RightElbow = 9
+    LeftHand = 10
+    RightHand = 11
+    LeftWaist = 12
+    RightWaist = 13
+    LeftKnee = 14
+    RightKnee = 15
+    LeftFoot = 16
+    RightFoot = 17
