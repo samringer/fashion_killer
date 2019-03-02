@@ -1,0 +1,15 @@
+torch
+torchvision
+wheel
+attrs
+cffi
+crc32c
+cryptography
+pyee
+pylibsrtp
+pyopenssl
+sphinxcontrib-asyncio
+opencv-python
+aiohttp
+av
+aiortc

@@ -27,12 +27,19 @@ class DataLoader_Unittests(unittest.TestCase):
 
         img = batch['img']
         keypoint_heat_maps = batch['keypoint_heat_maps']
-        loss_mask = batch['loss_mask']
+        part_affinity_fields = batch['part_affinity_fields']
+        kp_loss_mask = batch['kp_loss_mask']
+        p_a_f_loss_mask = batch['p_a_f_loss_mask']
 
-        desired_shape = (self.batch_size, 3, 256, 256)
-        self.assertEqual(img.shape, desired_shape)
-        self.assertEqual(list(keypoint_heat_maps.shape), [self.batch_size, 18, 256, 256])
-        self.assertEqual(list(loss_mask.shape), [self.batch_size, 18])
+        self.assertEqual(img.shape, (self.batch_size, 3, 256, 256))
+
+        self.assertEqual(list(keypoint_heat_maps.shape),
+                         [self.batch_size, 18, 256, 256])
+        self.assertEqual(list(part_affinity_fields.shape),
+                         [self.batch_size, 17, 256, 256, 2])
+        self.assertEqual(list(kp_loss_mask.shape), [self.batch_size, 18])
+        self.assertEqual(list(p_a_f_loss_mask.shape),
+                         [self.batch_size, 17])
 
 
 if __name__ == "__main__":

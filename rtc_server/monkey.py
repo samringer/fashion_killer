@@ -22,19 +22,22 @@ class Monkey:
 
         self.pose_drawer = Pose_Drawer()
 
-        model_base_path = '/home/sam/experiments/Pose_Detector/24_02_beta1_0/models/3.pt'
+        model_base_path = 'pretrained_models/pose_detector.pth'
         model = Model()
         model.load_state_dict(torch.load(model_base_path))
         model = model.eval().cuda()
         if self.use_cuda:
             model = model.cuda()
-        self.model = model()
+        self.model = model
 
     def draw_pose_from_img(self, img):
         """
         Args:
             img (numpy array)
         """
+        if img is None:
+            return
+
         img = _preprocess_input_img(img)
         img = img.astype('double')
         img_tensor = self.trans(img).float()

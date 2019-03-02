@@ -14,30 +14,21 @@ RUN apt-get install -y python3-dev libxml2-dev libxslt-dev
 RUN apt-get -y --no-install-recommends install \
 python3 \
 python3-pip \
-
 libglib2.0-0 \
 libxext6 \
 libsm6 \
 libxrender-dev \
 python3-setuptools
 
+COPY ./requirements.txt ./
+
 RUN pip3 install --upgrade setuptools
 RUN pip3 install --upgrade pip
-RUN pip3 install \
-wheel \
-attrs \
-cffi \
-crc32c \
-cryptography \
-pyee \
-pylibsrtp \
-pyopenssl \
-sphinxcontrib-asyncio \
-opencv-python \
-aiohttp \
-av \
-aiortc
+RUN pip3 install -r requirements.txt
 
+WORKDIR /src
+ENV PATH="/src:$PATH"
+ENV CUDA_VISIBLE_DEVICES=0
 
-WORKDIR "/rtc_server"
-ENTRYPOINT ["bash"]
+#WORKDIR "/fashion_killer"
+#ENTRYPOINT ["bash"]

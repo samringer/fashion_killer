@@ -32,21 +32,26 @@ class Dataset_Unittester(unittest.TestCase):
 
     def test_getitem(self):
         """
-        Test that an image returned from the dataset
-        fits that correct dimensions and that the keypoints
-        are all non-zero integers.
+        Test that an image and other data returned from
+        the dataset fits the correct dimensions.
         """
         datapoint = next(iter(self.dataset))
         img = datapoint['img']
         keypoint_heat_maps = datapoint['keypoint_heat_maps']
-        loss_mask = datapoint['loss_mask']
+        part_affinity_fields = datapoint['part_affinity_fields']
+        kp_loss_mask = datapoint['kp_loss_mask']
+        p_a_f_loss_mask = datapoint['p_a_f_loss_mask']
 
         # Note PyTorch wants 3xHxW
         desired_shape = (3, self.dataset.max_dim, self.dataset.max_dim)
         self.assertEqual(img.shape, desired_shape)
 
-        self.assertEqual(list(keypoint_heat_maps.shape), [18, self.dataset.max_dim, self.dataset.max_dim])
-        self.assertEqual(list(loss_mask.shape), [18])
+        self.assertEqual(list(keypoint_heat_maps.shape),
+                         [18, self.dataset.max_dim, self.dataset.max_dim])
+        self.assertEqual(list(part_affinity_fields.shape),
+                         [17, self.dataset.max_dim, self.dataset.max_dim,2])
+        self.assertEqual(list(kp_loss_mask.shape), [18])
+        self.assertEqual(list(p_a_f_loss_mask.shape), [17])
 
     def test_prepare_img(self):
         """
@@ -77,8 +82,11 @@ class Dataset_Unittester(unittest.TestCase):
         self.assertEqual(first_batch['keypoint_heat_maps'].tolist(),
                          second_batch['keypoint_heat_maps'].tolist())
 
-        self.assertEqual(first_batch['loss_mask'].tolist(),
-                         second_batch['loss_mask'].tolist())
+        self.assertEqual(first_batch['kp_loss_mask'].tolist(),
+                         second_batch['kp_loss_mask'].tolist())
+
+        self.assertEqual(first_batch['p_a_f_loss_mask'].tolist(),
+                         second_batch['p_a_f_loss_mask'].tolist())
 
     def test_adjust_keypoints(self):
         """
@@ -103,19 +111,19 @@ class Dataset_Unittester(unittest.TestCase):
 
         self.assertEqual(non_null_adj_keypoints, ground_truth)
 
-    def test_get_loss_mask(self):
+    def test_get_kp_loss_mask(self):
         """
         Joints that are not found should have their losses
         masked during training.
         """
-        from pose_detector.data_modules.dataset import _get_loss_mask, _extract_keypoints_from_img_data
+        from pose_detector.data_modules.dataset import _get_kp_loss_mask, _extract_keypoints_from_img_data
         img_data = self.dataset.imgs_data[0]
         keypoints = _extract_keypoints_from_img_data(img_data)
 
-        loss_mask = _get_loss_mask(keypoints)
-        desired_loss_mask = [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0]
+        kp_loss_mask = _get_kp_loss_mask(keypoints)
+        desired_kp_loss_mask = [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0]
 
-        self.assertEqual(loss_mask.tolist(), desired_loss_mask)
+        self.assertEqual(kp_loss_mask.tolist(), desired_kp_loss_mask)
 
 
 class Image_Processing_Unittests(unittest.TestCase):
@@ -230,6 +238,25 @@ class Image_Processing_Unittests(unittest.TestCase):
         expected = np.around(expected, decimals=3)
 
         self.assertEqual(heat_map.tolist(), expected.tolist())
+
+    def test_draw_part_affinity_field(self):
+        """
+        Test drawing of part affinity field from keypoint.
+        """
+        from pose_detector.data_modules.dataset import _draw_part_affinity_field
+        start_point = [10, 20]
+        end_point = [30, 40]
+        canvas = np.zeros([256, 256, 2])
+        p_a_f = _draw_part_affinity_field(start_point, end_point, canvas)
+
+        expected_path = join(self.datadir, 'test_paf.png')
+        with open(expected_path, 'rb') as in_f:
+            expected_p_a_f = pickle.load(in_f)
+
+        # Can't do full comparision as precision errors arise.
+        p_a_f = np.around(p_a_f, decimals=3)
+        expected_p_a_f = np.around(expected_p_a_f, decimals=3)
+        self.assertEqual(p_a_f.tolist(), expected_p_a_f.tolist())
 
 
 if __name__ == "__main__":

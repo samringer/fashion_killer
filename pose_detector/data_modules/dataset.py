@@ -9,6 +9,8 @@ import torch
 from torchvision import transforms
 from torch.utils.data import Dataset
 
+from pose_drawer.pose_settings import Pose_Settings
+
 
 class Pose_Detector_Dataset(Dataset):
     """
@@ -25,6 +27,9 @@ class Pose_Detector_Dataset(Dataset):
         self.max_dim = 256
         self.overtrain = overtrain
         self.min_joints_to_train_on = min_joints_to_train_on
+
+        # Needed for drawing the PAFs.
+        self.pose_settings = Pose_Settings()
 
         with open(str(keypoints_path), 'r') as in_f:
             self.imgs_data = json.load(in_f)['annotations']
@@ -58,12 +63,16 @@ class Pose_Detector_Dataset(Dataset):
         keypoints = _extract_keypoints_from_img_data(img_data)
         keypoints = _adjust_keypoints(keypoints, *keypoint_trans_info)
 
-        loss_mask = _get_loss_mask(keypoints)
+        kp_loss_mask = _get_kp_loss_mask(keypoints)
         keypoint_heat_maps = _create_heat_maps(keypoints, self.max_dim)
+
+        p_a_fs, p_a_f_loss_mask = self._create_part_affinity_fields(keypoints)
 
         return {'img': img,
                 'keypoint_heat_maps': keypoint_heat_maps,
-                'loss_mask': loss_mask}
+                'kp_loss_mask': kp_loss_mask,
+                'part_affinity_fields': p_a_fs,
+                'p_a_f_loss_mask': p_a_f_loss_mask}
 
     def _prepare_img(self, img, img_data):
         """
@@ -94,6 +103,35 @@ class Pose_Detector_Dataset(Dataset):
         keypoint_trans_info = ((x_0, y_0), x_offset, y_offset, scale_factor)
         return padded_img, keypoint_trans_info
 
+    def _create_part_affinity_fields(self, keypoints):
+        """
+        Create PAF for each limb.
+        Returns:
+            part_affinity_fields: A single tensor of all the PAFs.
+            paf_loss_mask: Loss mask so non-present limbs are not
+                           scored during training.
+        """
+        desired_connections = self.pose_settings.desired_connections
+        part_affinity_fields = []
+        p_a_f_loss_mask = np.zeros([len(desired_connections)])
+
+        for i, limb in enumerate(desired_connections):
+            canvas = np.zeros([self.max_dim, self.max_dim, 2])
+            start_joint, end_joint = limb
+            start_point = keypoints[start_joint.value]
+            end_point = keypoints[end_joint.value]
+
+            if start_point != (0, 0) and end_point != (0, 0):
+                p_a_f = _draw_part_affinity_field(start_point,
+                                                   end_point,
+                                                   canvas)
+                p_a_f_loss_mask[i] = 1.
+
+            part_affinity_fields.append(torch.Tensor(p_a_f))
+
+        part_affinity_fields = torch.stack(part_affinity_fields)
+        return part_affinity_fields, p_a_f_loss_mask
+
 
 def _get_valid_imgs(data, min_joints_to_train_on=1):
     """
@@ -114,22 +152,22 @@ def _get_valid_imgs(data, min_joints_to_train_on=1):
     return valid_img_indicies
 
 
-def _get_loss_mask(keypoints):
+def _get_kp_loss_mask(keypoints):
     """
     Keypoints that are not present in data should
     have corresponding losses masked during training.
     Args:
         keypoints (l of tuples): Pixel positions of all keypoints.
     Returns:
-        loss_mask (PyTorch tensor): 0 if joint not found, 1 if it is.
+        kp_loss_mask (PyTorch tensor): 0 if joint not found, 1 if it is.
     """
-    loss_mask = []
+    kp_loss_mask = []
     for point in keypoints:
         if point == (0, 0):
-            loss_mask.append(0)
+            kp_loss_mask.append(0)
         else:
-            loss_mask.append(1)
-    return torch.Tensor(loss_mask)
+            kp_loss_mask.append(1)
+    return torch.Tensor(kp_loss_mask)
 
 
 def _extract_keypoints_from_img_data(data):
@@ -294,3 +332,42 @@ def _create_heat_map(keypoint, edge_size, sigma=20):
             heat = math.e**(-exponent) * 0.9
             heat_map[col_num][row_num] = heat
     return heat_map
+
+
+def _draw_part_affinity_field(start_point, end_point, canvas):
+    """
+    Creates a part affinity map for the limb between two joints.
+    Args:
+        start_point (tuple of ints): Pixel position of start
+                                     joint of limb.
+        end_point (tuple of ints): Pixel position of end
+                                   joint of limb.
+        canvas (np array): Canvas to draw PAF on.
+    Returns:
+        canvas (np array): Canvas with PAF drawn on it.
+    """
+    limb_pixel_width = 4
+
+    limb_vec = np.subtract(end_point, start_point)
+    limb_vec_length = np.linalg.norm(limb_vec)
+    unit_vec = limb_vec/limb_vec_length
+    perp_unit_vec = np.array([unit_vec[1], -unit_vec[0]])
+
+    def _point_on_limb(point):
+        test_vec = np.subtract(point, start_point)
+
+        projection_on_length = np.dot(test_vec, unit_vec)
+        projection_on_width = np.dot(test_vec, perp_unit_vec)
+
+        within_length = 0 <= projection_on_length <= limb_vec_length
+        within_width = np.abs(projection_on_width) <= limb_pixel_width
+        return within_length and within_width
+
+    # Check if each pixel on np canvas lies on the limb.
+    for i in range(canvas.shape[0]):
+        for j in range(canvas.shape[1]):
+            if _point_on_limb([i, j]):
+                # This is how the paper chooses to construct PAFs.
+                canvas[j, i, :] = unit_vec
+
+    return canvas

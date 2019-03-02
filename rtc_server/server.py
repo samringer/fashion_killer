@@ -5,6 +5,8 @@ import logging
 import os
 import ssl
 import uuid
+from threading import Thread
+from concurrent.futures import ThreadPoolExecutor
 
 import cv2
 from aiohttp import web
@@ -12,6 +14,8 @@ from av import VideoFrame
 
 from aiortc import RTCPeerConnection, RTCSessionDescription, VideoStreamTrack
 from aiortc.contrib.media import MediaBlackhole, MediaPlayer, MediaRecorder
+
+from rtc_server.monkey import Monkey
 
 ROOT = os.path.dirname(__file__)
 
@@ -25,39 +29,42 @@ class VideoTransformTrack(VideoStreamTrack):
         self.counter = 0
         self.track = track
         self.transform = transform
+        self.monkey = Monkey()
+
+        # Placeholders
+        self.in_img = None
+        self.pose_img = None
+
+        self.worker = Thread(target=self.draw_pose_img)
+        self.worker.setDaemon(True)
+        self.worker.start()
+
 
     async def recv(self):
         frame = await self.track.recv()
         self.counter += 1
 
-        if self.transform == 'cartoon':
-            img = frame.to_ndarray(format='bgr24')
+        self.in_img = frame.to_ndarray(format='bgr24')
 
-            # prepare color
-            img_color = cv2.pyrDown(cv2.pyrDown(img))
-            for _ in range(6):
-                img_color = cv2.bilateralFilter(img_color, 9, 9, 7)
-            img_color = cv2.pyrUp(cv2.pyrUp(img_color))
-
-            # prepare edges
-            img_edges = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-            img_edges = cv2.adaptiveThreshold(
-                cv2.medianBlur(img_edges, 7), 255,
-                cv2.ADAPTIVE_THRESH_MEAN_C,
-                cv2.THRESH_BINARY, 9, 2)
-            img_edges = cv2.cvtColor(img_edges, cv2.COLOR_GRAY2RGB)
-
-            # combine color and edges
-            img = cv2.bitwise_and(img_color, img_edges)
-
-            # rebuild a VideoFrame, preserving timing information
-            new_frame = VideoFrame.from_ndarray(img, format='bgr24')
-            new_frame.pts = frame.pts
-            new_frame.time_base = frame.time_base
-            return new_frame
-        else:
+        # Hanlde initial condition on startup.
+        if self.pose_img is None:
             return frame
 
+        out_img = (self.pose_img*256).astype('uint8')
+
+        # rebuild a VideoFrame, preserving timing information
+        # Note that this expects array to be of datatype uint8
+        new_frame = VideoFrame.from_ndarray(out_img, format='bgr24')
+        new_frame.pts = frame.pts
+        new_frame.time_base = frame.time_base
+        return new_frame
+
+    def draw_pose_img(self):
+        """
+        Detect pose and draw inside a seperate thread.
+        """
+        while True:
+            self.pose_img = self.monkey.draw_pose_from_img(self.in_img)
 
 async def index(request):
     content = open(os.path.join(ROOT, 'index.html'), 'r').read()
