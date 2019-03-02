@@ -64,20 +64,28 @@ def _get_training_objects():
 def _training_step(batch, model, optimizer):
     img = batch['img']
     true_heat_maps = batch['keypoint_heat_maps']
-    loss_mask = batch['loss_mask']
+    true_pafs = batch['part_affinity_fields']
+    kp_loss_mask = batch['kp_loss_mask']
+    paf_loss_mask = batch['p_a_f_loss_mask']
 
     if hp.use_cuda:
         img = img.cuda()
         true_heat_maps = true_heat_maps.cuda()
-        loss_mask = loss_mask.cuda()
+        true_pafs = true_pafs.cuda()
+        kp_loss_mask = kp_loss_mask.cuda()
+        paf_loss_mask = paf_loss_mask.cuda()
 
-    pred_heat_maps = model(img)
+    pred_pafs, pred_heat_maps = model(img)
 
     # Need to scale down ground truth
     # by a factor of 4 to make dims match.
     true_heat_maps = nn.MaxPool2d(4)(true_heat_maps)
 
-    loss = get_heatmap_loss(pred_heat_maps, true_heat_maps, loss_mask)
+    hm_loss = get_heatmap_loss(pred_heat_maps, true_heat_maps,
+                               kp_loss_mask)
+    paf_loss = get_part_affinity_field_loss(pred_pafs, true_pafs,
+                                            paf_loss_mask)
+    loss = hm_loss + paf_loss
 
     optimizer.zero_grad()
     if hp.use_fp16:
@@ -90,24 +98,44 @@ def _training_step(batch, model, optimizer):
     return pred_heat_maps, loss
 
 
-def get_heatmap_loss(pred_heat_maps, true_heat_maps, loss_mask):
+def get_heatmap_loss(pred_heat_maps, true_heat_maps, kp_loss_mask):
     """
     Get MSE loss between true heatmap and pred heatmap.
     If joint is not present in the data then the corresponding
-    loss using ignored using the loss mask.
+    loss using ignored using the keypoint loss mask.
     """
     heatmap_loss = 0
-    loss_mask = loss_mask.unsqueeze(2).unsqueeze(3)
-    true_heat_maps_masked = true_heat_maps * loss_mask
+    kp_loss_mask = kp_loss_mask.unsqueeze(2).unsqueeze(3)
+    true_heat_maps_masked = true_heat_maps * kp_loss_mask
     for pred_heat_map in pred_heat_maps:
-        pred_heat_map_masked = pred_heat_map * loss_mask
+        pred_heat_map_masked = pred_heat_map * kp_loss_mask
         heatmap_loss += nn.MSELoss()(pred_heat_map_masked, true_heat_maps_masked)
     return heatmap_loss
 
 
+def get_part_affinity_field_loss(pred_pafs, true_pafs, paf_loss_mask):
+    """
+    Get MSE loss between true part affinity fields and
+    predicted part affinity fields.
+    If limb is not present in the data then the corresponding
+    loss using ignored using the part affinity field loss mask.
+    """
+    paf_loss = 0
+    paf_loss_mask = paf_loss_mask.unsqueeze(2).unsqueeze(3)
+    true_pafs_masked = true_pafs * paf_loss_mask
+    for pred_paf in pred_pafs:
+        pred_paf_masked = pred_paf * paf_loss_mask
+        paf_loss += nn.MSELoss()(pred_paf_masked, true_pafs_masked)
+    return paf_loss
+
+
 def log_results(epoch, step_num, writer, pred_heat_maps, loss):
+    """
+    Log the results using tensorboardx so they can be
+    viewed using a tensorboard server.
+    """
     # Interpolate up to make img a decent size.
-    heat_maps = nn.functional.interpolate(pred_heat_maps[2], scale_factor=4)
+    heat_maps = nn.functional.interpolate(pred_heat_maps[1], scale_factor=4)
     heat_maps = heat_maps[0].cpu().detach().numpy()
     heat_map_list = [heat_maps[i] for i in range(heat_maps.shape[0])]
     pose_img = POSE_DRAWER.draw_pose_from_heatmaps(heat_map_list)

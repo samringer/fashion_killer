@@ -116,7 +116,7 @@ class Pose_Detector_Dataset(Dataset):
         p_a_f_loss_mask = np.zeros([len(desired_connections)])
 
         for i, limb in enumerate(desired_connections):
-            canvas = np.zeros([self.max_dim, self.max_dim, 2])
+            p_a_f = np.zeros([2, self.max_dim, self.max_dim])
             start_joint, end_joint = limb
             start_point = keypoints[start_joint.value]
             end_point = keypoints[end_joint.value]
@@ -124,12 +124,12 @@ class Pose_Detector_Dataset(Dataset):
             if start_point != (0, 0) and end_point != (0, 0):
                 p_a_f = _draw_part_affinity_field(start_point,
                                                    end_point,
-                                                   canvas)
+                                                   p_a_f)
                 p_a_f_loss_mask[i] = 1.
 
             part_affinity_fields.append(torch.Tensor(p_a_f))
 
-        part_affinity_fields = torch.stack(part_affinity_fields)
+        part_affinity_fields = torch.cat(part_affinity_fields, dim=0)
         return part_affinity_fields, p_a_f_loss_mask
 
 
@@ -364,10 +364,10 @@ def _draw_part_affinity_field(start_point, end_point, canvas):
         return within_length and within_width
 
     # Check if each pixel on np canvas lies on the limb.
-    for i in range(canvas.shape[0]):
-        for j in range(canvas.shape[1]):
+    for i in range(canvas.shape[1]):
+        for j in range(canvas.shape[2]):
             if _point_on_limb([i, j]):
                 # This is how the paper chooses to construct PAFs.
-                canvas[j, i, :] = unit_vec
+                canvas[:, j, i] = unit_vec
 
     return canvas

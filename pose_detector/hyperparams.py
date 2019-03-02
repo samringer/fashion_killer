@@ -4,6 +4,7 @@ overtrain = False
 leakiness = 0.2
 batch_size = 8
 num_joints = 18
+num_limbs = 17
 min_joints_to_train_on = 10
 
 num_epochs = 10

@@ -49,7 +49,7 @@ class Dataset_Unittester(unittest.TestCase):
         self.assertEqual(list(keypoint_heat_maps.shape),
                          [18, self.dataset.max_dim, self.dataset.max_dim])
         self.assertEqual(list(part_affinity_fields.shape),
-                         [17, self.dataset.max_dim, self.dataset.max_dim,2])
+                         [17*2, self.dataset.max_dim, self.dataset.max_dim])
         self.assertEqual(list(kp_loss_mask.shape), [18])
         self.assertEqual(list(p_a_f_loss_mask.shape), [17])
 
@@ -246,10 +246,12 @@ class Image_Processing_Unittests(unittest.TestCase):
         from pose_detector.data_modules.dataset import _draw_part_affinity_field
         start_point = [10, 20]
         end_point = [30, 40]
-        canvas = np.zeros([256, 256, 2])
+        canvas = np.zeros([2, 256, 256])
         p_a_f = _draw_part_affinity_field(start_point, end_point, canvas)
 
         expected_path = join(self.datadir, 'test_paf.png')
+        with open(expected_path, 'wb') as in_f:
+            pickle.dump(p_a_f, in_f)
         with open(expected_path, 'rb') as in_f:
             expected_p_a_f = pickle.load(in_f)
 

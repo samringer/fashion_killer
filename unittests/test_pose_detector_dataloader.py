@@ -36,7 +36,7 @@ class DataLoader_Unittests(unittest.TestCase):
         self.assertEqual(list(keypoint_heat_maps.shape),
                          [self.batch_size, 18, 256, 256])
         self.assertEqual(list(part_affinity_fields.shape),
-                         [self.batch_size, 17, 256, 256, 2])
+                         [self.batch_size, 17*2, 256, 256])
         self.assertEqual(list(kp_loss_mask.shape), [self.batch_size, 18])
         self.assertEqual(list(p_a_f_loss_mask.shape),
                          [self.batch_size, 17])

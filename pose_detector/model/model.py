@@ -1,6 +1,7 @@
+import torch
 from torch import nn
 
-from pose_detector.model.modules import Joint_Map_Block
+from pose_detector.model.modules import Limb_Block, Joint_Block
 from pose_detector.model.custom_VGG19 import get_custom_VGG19
 import pose_detector.hyperparams as hp
 
@@ -10,16 +11,35 @@ class Model(nn.Module):
     def __init__(self):
         super().__init__()
         self.VGG = get_custom_VGG19()
-        self.joint_map_block_1 = Joint_Map_Block(256)
-        self.joint_map_block_2 = Joint_Map_Block(256+hp.num_joints)
-        self.joint_map_block_3 = Joint_Map_Block(256+2*hp.num_joints)
-        self.joint_map_block_4 = Joint_Map_Block(256+3*hp.num_joints)
+
+        self.limb_block_1 = Limb_Block(256)
+        self.limb_block_2 = Limb_Block(256+2*hp.num_limbs)
+        self.limb_block_3 = Limb_Block(256+2*hp.num_limbs)
+        self.limb_block_4 = Limb_Block(256+2*hp.num_limbs)
+
+        self.joint_block_1 = Joint_Block(256+2*hp.num_limbs)
+        self.joint_block_2 = Joint_Block(256+hp.num_joints)
 
     def forward(self, x):
-        x = self.VGG(x)
-        x, heat_maps_1 = self.joint_map_block_1(x)
-        x, heat_maps_2 = self.joint_map_block_2(x)
-        x, heat_maps_3 = self.joint_map_block_3(x)
-        _, heat_maps_4 = self.joint_map_block_4(x)
-        heat_maps = [heat_maps_2, heat_maps_3, heat_maps_4]
-        return heat_maps
+        F = self.VGG(x)
+        limb_map_1 = self.limb_block_1(x)
+
+        x = torch.cat((F, limb_map_1), dim=1)
+        limb_map_2 = self.limb_block_2(x)
+
+        x = torch.cat((F, limb_map_2), dim=1)
+        limb_map_3 = self.limb_block_3(x)
+
+        x = torch.cat((F, limb_map_3), dim=1)
+        limb_map_4 = self.limb_block_4(x)
+
+        x = torch.cat((F, limb_map_4), dim=1)
+        joint_map_1 = self.joint_block_1(x)
+
+        x = torch.cat((F, joint_map_1), dim=1)
+        joint_map_2 = self.joint_block_2(x)
+
+        part_affinity_fields = [limb_map_1, limb_map_2,
+                                limb_map_3, limb_map_4]
+        heat_maps = [joint_map_1, joint_map_2]
+        return part_affinity_fields, heat_maps
