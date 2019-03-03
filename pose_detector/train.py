@@ -80,6 +80,7 @@ def _training_step(batch, model, optimizer):
     # Need to scale down ground truth
     # by a factor of 4 to make dims match.
     true_heat_maps = nn.MaxPool2d(4)(true_heat_maps)
+    true_pafs = nn.MaxPool2d(4)(true_pafs)
 
     hm_loss = get_heatmap_loss(pred_heat_maps, true_heat_maps,
                                kp_loss_mask)
@@ -135,7 +136,7 @@ def log_results(epoch, step_num, writer, pred_heat_maps, loss):
     viewed using a tensorboard server.
     """
     # Interpolate up to make img a decent size.
-    heat_maps = nn.functional.interpolate(pred_heat_maps[1], scale_factor=4)
+    heat_maps = nn.functional.interpolate(pred_heat_maps[0], scale_factor=4)
     heat_maps = heat_maps[0].cpu().detach().numpy()
     heat_map_list = [heat_maps[i] for i in range(heat_maps.shape[0])]
     pose_img = POSE_DRAWER.draw_pose_from_heatmaps(heat_map_list)

@@ -6,7 +6,7 @@ from pose_detector.data_modules.dataset import Pose_Detector_Dataset
 class Pose_Detector_DataLoader(DataLoader):
 
     def __init__(self, batch_size, root_data_path='/home/sam/data/COCO',
-                 num_workers=4, overtrain=False,
+                 num_workers=2, overtrain=False,
                  min_joints_to_train_on=6):
         """
         Args:

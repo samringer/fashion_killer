@@ -69,9 +69,9 @@ class Pose_Detector_Dataset(Dataset):
         p_a_fs, p_a_f_loss_mask = self._create_part_affinity_fields(keypoints)
 
         return {'img': img,
-                'keypoint_heat_maps': keypoint_heat_maps,
+                'keypoint_heat_maps': keypoint_heat_maps.float(),
                 'kp_loss_mask': kp_loss_mask,
-                'part_affinity_fields': p_a_fs,
+                'part_affinity_fields': p_a_fs.float(),
                 'p_a_f_loss_mask': p_a_f_loss_mask}
 
     def _prepare_img(self, img, img_data):
@@ -113,7 +113,7 @@ class Pose_Detector_Dataset(Dataset):
         """
         desired_connections = self.pose_settings.desired_connections
         part_affinity_fields = []
-        p_a_f_loss_mask = np.zeros([len(desired_connections)])
+        p_a_f_loss_mask = []
 
         for i, limb in enumerate(desired_connections):
             p_a_f = np.zeros([2, self.max_dim, self.max_dim])
@@ -122,15 +122,18 @@ class Pose_Detector_Dataset(Dataset):
             end_point = keypoints[end_joint.value]
 
             if start_point != (0, 0) and end_point != (0, 0):
+                p_a_f_loss_mask.extend([1., 1.])
                 p_a_f = _draw_part_affinity_field(start_point,
-                                                   end_point,
-                                                   p_a_f)
-                p_a_f_loss_mask[i] = 1.
+                                                  end_point,
+                                                  p_a_f)
+            else:
+                p_a_f_loss_mask.extend([0., 0.])
 
-            part_affinity_fields.append(torch.Tensor(p_a_f))
+            part_affinity_fields.append(torch.from_numpy(p_a_f))
 
         part_affinity_fields = torch.cat(part_affinity_fields, dim=0)
-        return part_affinity_fields, p_a_f_loss_mask
+
+        return part_affinity_fields, torch.Tensor(p_a_f_loss_mask)
 
 
 def _get_valid_imgs(data, min_joints_to_train_on=1):
@@ -304,7 +307,7 @@ def _create_heat_maps(keypoints, edge_size, sigma=20):
     heat_maps = []
     for keypoint in keypoints:
         heat_map = _create_heat_map(keypoint, edge_size, sigma)
-        heat_maps.append(torch.Tensor(heat_map))
+        heat_maps.append(torch.from_numpy(heat_map))
     heat_maps = torch.stack(heat_maps)
     return heat_maps
 
@@ -350,7 +353,7 @@ def _draw_part_affinity_field(start_point, end_point, canvas):
 
     limb_vec = np.subtract(end_point, start_point)
     limb_vec_length = np.linalg.norm(limb_vec)
-    unit_vec = limb_vec/limb_vec_length
+    unit_vec = np.divide(limb_vec, limb_vec_length)
     perp_unit_vec = np.array([unit_vec[1], -unit_vec[0]])
 
     def _point_on_limb(point):
@@ -369,5 +372,4 @@ def _draw_part_affinity_field(start_point, end_point, canvas):
             if _point_on_limb([i, j]):
                 # This is how the paper chooses to construct PAFs.
                 canvas[:, j, i] = unit_vec
-
     return canvas
