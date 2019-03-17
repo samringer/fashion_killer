@@ -16,10 +16,14 @@ def get_images_from_outfit_page(base_url):
     imgs = soup.find_all('img')
     img_list = [i['src'] for i in imgs]
 
+    fixed_img_urls = set()
     for img_name in img_list:
         if is_valid_source(img_name):
             img_name = fix_thumbnail_url(img_name)
             print(img_name)
+            fixed_img_urls.add(img_name)
+
+    return fixed_img_urls
 
 
 def fix_thumbnail_url(src):

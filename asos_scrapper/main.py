@@ -9,7 +9,6 @@ brand_urls = get_brand_urls(base_url)
 with open('brand_urls.pkl', 'wb') as in_f:
     pickle.dump(brand_urls, in_f)
 
-"""
 all_page_urls = set()
 for brand_url in brand_urls:
     page_urls = get_all_next_pages(brand_url)
@@ -26,4 +25,3 @@ for page_url in all_page_urls:
     all_outfit_pages = all_outfit_pages.union(outfit_pages)
 with open('outfit_urls.pkl', 'wb') as in_f:
     pickle.dump(all_outfit_pages, in_f)
-"""
