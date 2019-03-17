@@ -52,6 +52,8 @@ class Monkey:
         final_heat_maps = final_heat_maps.cpu().detach().numpy()
         final_heat_maps = _zero_heat_map_edges(final_heat_maps)
 
+        # TODO: think don't need as much overkill in this line.
+        # Think don't need list comp as long as its a np array.
         heat_map_list = [final_heat_maps[i] for i in range(final_heat_maps.shape[0])]
         pose_img = self.pose_drawer.draw_pose_from_heatmaps(heat_map_list)
         return pose_img

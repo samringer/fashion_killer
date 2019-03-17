@@ -33,6 +33,7 @@ class Pose_Drawer():
         This method draws a pose from these heatmaps.
         Args:
             heat_maps (l of np arrays): List of joint confidence heat_maps.
+                                        Must be np arrays and not PyTorch tensors.
         Returns:
             canvas (np array): np array of image with pose drawn on it.
         """
@@ -40,7 +41,7 @@ class Pose_Drawer():
         keypoints = []
 
         for heat_map in heat_maps:
-            max_heat = np.max(heat_map)
+            max_heat = np.amax(heat_map)
             if max_heat >= self.pose_settings.keypoint_from_heatmap_threshold:
                 keypoint = np.array(np.unravel_index(heat_map.argmax(), heat_map.shape))
                 keypoint = np.array([keypoint[1], keypoint[0]])  # Unravelling flips dims
