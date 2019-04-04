@@ -8,6 +8,7 @@ from os.path import join
 import torch
 from torchvision import transforms
 from torch.utils.data import Dataset
+from PIL import Image, ImageDraw
 
 from pose_drawer.pose_settings import Pose_Settings
 
@@ -39,7 +40,6 @@ class Pose_Detector_Dataset(Dataset):
 
         self.trans = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ])
 
     def __len__(self):
@@ -116,22 +116,22 @@ class Pose_Detector_Dataset(Dataset):
         p_a_f_loss_mask = []
 
         for i, limb in enumerate(desired_connections):
-            p_a_f = np.zeros([2, self.max_dim, self.max_dim])
+            p_a_f = np.zeros([self.max_dim, self.max_dim])
             start_joint, end_joint = limb
             start_point = keypoints[start_joint.value]
             end_point = keypoints[end_joint.value]
 
             if start_point != (0, 0) and end_point != (0, 0):
-                p_a_f_loss_mask.extend([1., 1.])
+                p_a_f_loss_mask.append(1.)
                 p_a_f = _draw_part_affinity_field(start_point,
                                                   end_point,
                                                   p_a_f)
             else:
-                p_a_f_loss_mask.extend([0., 0.])
+                p_a_f_loss_mask.append(0.)
 
             part_affinity_fields.append(torch.from_numpy(p_a_f))
 
-        part_affinity_fields = torch.cat(part_affinity_fields, dim=0)
+        part_affinity_fields = torch.stack(part_affinity_fields, dim=0)
 
         return part_affinity_fields, torch.Tensor(p_a_f_loss_mask)
 
@@ -331,8 +331,10 @@ def _create_heat_map(keypoint, edge_size, sigma=20):
         for col_num in range(edge_size):
             dist_from_keypoint = (row_num-x)**2 + (col_num-y)**2
             exponent = dist_from_keypoint/(sigma**2)
+            heat = math.e**(-exponent)
+
             # The 0.9 is label smoothing.
-            heat = math.e**(-exponent) * 0.9
+            heat = heat * 0.9
             heat_map[col_num][row_num] = heat
     return heat_map
 
@@ -353,23 +355,41 @@ def _draw_part_affinity_field(start_point, end_point, canvas):
 
     limb_vec = np.subtract(end_point, start_point)
     limb_vec_length = np.linalg.norm(limb_vec)
+    if limb_vec_length < 1e-4:
+        return canvas
     unit_vec = np.divide(limb_vec, limb_vec_length)
     perp_unit_vec = np.array([unit_vec[1], -unit_vec[0]])
+    perp_vec = perp_unit_vec * limb_pixel_width
 
-    def _point_on_limb(point):
+    u_left = start_point + perp_vec
+    l_left = start_point - perp_vec
+    u_right = start_point + perp_vec + limb_vec
+    l_right = start_point - perp_vec + limb_vec
+    rect = [u_left, l_left, l_right, u_right, u_left]
+
+    img = Image.fromarray(canvas)
+    draw = ImageDraw.Draw(img)
+    draw.polygon([tuple(p) for p in rect], fill=1)
+    canvas = np.asarray(img)
+    canvas = 0.9 * (canvas + 0.1)  # Label smoothing
+    return canvas.astype(float)
+
+    """
+    def _is_point_on_limb(point):
         test_vec = np.subtract(point, start_point)
 
-        projection_on_length = np.dot(test_vec, unit_vec)
-        projection_on_width = np.dot(test_vec, perp_unit_vec)
+        projection_on_length = sum(test_vec * unit_vec)
+        projection_on_width = sum(test_vec * perp_unit_vec)
 
         within_length = 0 <= projection_on_length <= limb_vec_length
-        within_width = np.abs(projection_on_width) <= limb_pixel_width
+        within_width = abs(projection_on_width) <= limb_pixel_width
         return within_length and within_width
 
     # Check if each pixel on np canvas lies on the limb.
     for i in range(canvas.shape[1]):
         for j in range(canvas.shape[2]):
-            if _point_on_limb([i, j]):
+            if _is_point_on_limb([i, j]):
                 # This is how the paper chooses to construct PAFs.
                 canvas[:, j, i] = unit_vec
     return canvas
+    """

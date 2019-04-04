@@ -1,3 +1,7 @@
+Overfitting stuff:
+ * Check we can overfit with label smoothing turned off.
+ * Add learning rate schedule.
+
 CHECK IF I CAN REMOVE INPUTTING THE INPUT POSE OF THE DESIRED APPEARANCE
 IMAGE INTO THE ENCODER, would make things simpler
 

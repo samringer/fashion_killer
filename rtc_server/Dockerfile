@@ -26,9 +26,9 @@ RUN pip3 install --upgrade setuptools
 RUN pip3 install --upgrade pip
 RUN pip3 install -r requirements.txt
 
-WORKDIR /src
+#WORKDIR /src
 ENV PATH="/src:$PATH"
 ENV CUDA_VISIBLE_DEVICES=0
 
-#WORKDIR "/fashion_killer"
-#ENTRYPOINT ["bash"]
+WORKDIR "/fashion_killer"
+ENTRYPOINT ["python3", "-m", "rtc_server.server"]

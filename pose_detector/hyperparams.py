@@ -9,8 +9,6 @@ min_joints_to_train_on = 10
 
 num_epochs = 10
 learning_rate = 0.0001
-beta_1 = 0.0
-beta_2 = 0.99
 
 keypoint_from_heatmap_threshold = 0.8
 

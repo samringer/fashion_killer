@@ -20,4 +20,5 @@ class Pose_Detector_DataLoader(DataLoader):
                                         overtrain=overtrain,
                                         min_joints_to_train_on=min_joints_to_train_on)
         super().__init__(dataset, batch_size=batch_size,
-                         shuffle=True, num_workers=num_workers)
+                         shuffle=True, num_workers=num_workers,
+                         pin_memory=True)

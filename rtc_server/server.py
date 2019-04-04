@@ -24,21 +24,19 @@ pcs = set()
 
 
 class VideoTransformTrack(VideoStreamTrack):
-    def __init__(self, track, transform):
+    def __init__(self, track, transform=None):
         super().__init__()  # don't forget this!
         self.counter = 0
         self.track = track
-        self.transform = transform
-        self.monkey = Monkey()
+        if transform:
+            self.monkey = Monkey()
+            self.worker = Thread(target=self.draw_pose_img)
+            self.worker.setDaemon(True)
+            self.worker.start()
 
         # Placeholders
         self.in_img = None
         self.pose_img = None
-
-        self.worker = Thread(target=self.draw_pose_img)
-        self.worker.setDaemon(True)
-        self.worker.start()
-
 
     async def recv(self):
         frame = await self.track.recv()
@@ -113,8 +111,8 @@ async def offer(request):
         log_info('Track %s received', track.kind)
 
         if track.kind == 'video':
-            local_video = VideoTransformTrack(track, transform=params['video_transform'])
-            pc.addTrack(local_video)
+            transformed_video = VideoTransformTrack(track, transform=params['video_transform'])
+            pc.addTrack(transformed_video)
 
         @track.on('ended')
         async def on_ended():

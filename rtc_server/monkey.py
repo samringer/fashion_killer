@@ -15,17 +15,14 @@ class Monkey:
     https://jackiechanadventures.fandom.com/wiki/Monkey_Talisman
     """
     def __init__(self):
-        self.trans = transforms.Compose([transforms.ToTensor(),
-                                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-                                   ])
         self.use_cuda = True
 
         self.pose_drawer = Pose_Drawer()
 
-        model_base_path = 'pretrained_models/pose_detector.pth'
+        model_base_path = 'pretrained_models/pose_detector.pt'
         model = Model()
         model.load_state_dict(torch.load(model_base_path))
-        model = model.eval().cuda()
+        model = model.eval()
         if self.use_cuda:
             model = model.cuda()
         self.model = model
@@ -40,14 +37,15 @@ class Monkey:
 
         img = _preprocess_input_img(img)
         img = img.astype('double')
-        img_tensor = self.trans(img).float()
+        img_tensor = transforms.ToTensor()(img).float()
 
         if self.use_cuda:
             img_tensor = img_tensor.cuda()
 
-        pred_heat_maps = self.model(img_tensor.view(1, 3, 256, 256))
+        with torch.no_grad():
+            _, pred_heat_maps = self.model(img_tensor.view(1, 3, 256, 256))
 
-        final_heat_maps = nn.functional.interpolate(pred_heat_maps[2], scale_factor=4)
+        final_heat_maps = nn.functional.interpolate(pred_heat_maps[-1], scale_factor=4)
         final_heat_maps = final_heat_maps.view(18, 256, 256)
         final_heat_maps = final_heat_maps.cpu().detach().numpy()
         final_heat_maps = _zero_heat_map_edges(final_heat_maps)

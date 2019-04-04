@@ -31,10 +31,10 @@ def get_custom_VGG19(pretrained=True, **kwargs):
         kwargs['init_weights'] = False
     model = Custom_VGG19(make_layers(full_layer_spec), **kwargs)
     if pretrained:
-        #model.load_state_dict(torch.load('pretrained_models/vgg19.pth'))
+        model.load_state_dict(torch.load('pretrained_models/vgg19.pt'))
 
         # This line is used when you first need to download vgg19 from the internet.
-        model.load_state_dict(model_zoo.load_url(model_urls['vgg19']))
+        #model.load_state_dict(model_zoo.load_url(model_urls['vgg19']))
     return model
 
 
