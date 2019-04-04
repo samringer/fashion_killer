@@ -24,19 +24,20 @@ pcs = set()
 
 
 class VideoTransformTrack(VideoStreamTrack):
-    def __init__(self, track, transform=None):
+    def __init__(self, track, transform):
         super().__init__()  # don't forget this!
         self.counter = 0
         self.track = track
-        if transform:
-            self.monkey = Monkey()
-            self.worker = Thread(target=self.draw_pose_img)
-            self.worker.setDaemon(True)
-            self.worker.start()
+        self.monkey = Monkey()
 
         # Placeholders
         self.in_img = None
         self.pose_img = None
+
+        self.worker = Thread(target=self.draw_pose_img)
+        self.worker.setDaemon(True)
+        self.worker.start()
+
 
     async def recv(self):
         frame = await self.track.recv()
