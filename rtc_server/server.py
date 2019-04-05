@@ -24,19 +24,22 @@ pcs = set()
 
 
 class VideoTransformTrack(VideoStreamTrack):
-    def __init__(self, track, transform):
+    def __init__(self, track, transform=None):
         super().__init__()  # don't forget this!
         self.counter = 0
         self.track = track
-        self.monkey = Monkey()
+        self.transform = transform
 
-        # Placeholders
+        # Placeholder
         self.in_img = None
-        self.pose_img = None
 
-        self.worker = Thread(target=self.draw_pose_img)
-        self.worker.setDaemon(True)
-        self.worker.start()
+        if transform:
+            self.pose_img = None
+            self.monkey = Monkey()
+            # Continuously update the pose img in another thread.
+            self.worker = Thread(target=self.draw_pose_img)
+            self.worker.setDaemon(True)
+            self.worker.start()
 
 
     async def recv(self):
@@ -49,7 +52,11 @@ class VideoTransformTrack(VideoStreamTrack):
         if self.pose_img is None:
             return frame
 
-        out_img = (self.pose_img*256).astype('uint8')
+        if self.transform:
+            out_img = (self.pose_img*256).astype('uint8')
+        else:
+            # TODO: return the actual image that monkey sees
+            out_img = self.in_img
 
         # rebuild a VideoFrame, preserving timing information
         # Note that this expects array to be of datatype uint8
@@ -64,6 +71,7 @@ class VideoTransformTrack(VideoStreamTrack):
         """
         while True:
             self.pose_img = self.monkey.draw_pose_from_img(self.in_img)
+
 
 async def index(request):
     content = open(os.path.join(ROOT, 'index.html'), 'r').read()
@@ -93,27 +101,15 @@ async def offer(request):
     # prepare local media
     recorder = MediaBlackhole()
 
-    @pc.on('datachannel')
-    def on_datachannel(channel):
-        @channel.on('message')
-        def on_message(message):
-            if isinstance(message, str) and message.startswith('ping'):
-                channel.send('pong' + message[4:])
-
-    @pc.on('iceconnectionstatechange')
-    async def on_iceconnectionstatechange():
-        log_info('ICE connection state is %s', pc.iceConnectionState)
-        if pc.iceConnectionState == 'failed':
-            await pc.close()
-            pcs.discard(pc)
-
     @pc.on('track')
     def on_track(track):
         log_info('Track %s received', track.kind)
 
         if track.kind == 'video':
-            transformed_video = VideoTransformTrack(track, transform=params['video_transform'])
-            pc.addTrack(transformed_video)
+            #original_video = VideoTransformTrack(track)
+            pose_video = VideoTransformTrack(track, transform='pose')
+            #pc.addTrack(original_video)
+            pc.addTrack(pose_video)
 
         @track.on('ended')
         async def on_ended():

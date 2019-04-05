@@ -13,17 +13,48 @@
         overflow-y: auto;
     }
 
-    video {
+    <!-- video {
         width: 100%;
-    }
+    }-->
 
     .option {
         margin-bottom: 8px;
     }
+	#wrapper { 
+    width: 1220px; 
+    height: auto; 
+    margin: 0 auto;
+	} 
 
-    #media {
-        max-width: 280px;
-    }
+	#original-video { 
+		width: 47.5%; 
+		height: 500px; 
+		float: left; 
+		margin-right: 5%;
+	} 
+
+	#pose-video { 
+		width: 47.5%; 
+		height: 500px; 
+		float: left; 
+	}
+
+	@media (max-width:700px) {
+		#wrapper{
+			width: 100%;
+			height: auto;
+		}
+		#original-video {
+			width: 100%;
+			height: auto;
+			float: none;
+		}
+		#pose-video {
+			width: 100%;
+			height: auto;
+			float: none;
+		}
+	}
 
     </style>
 </head>
@@ -40,17 +71,6 @@
         <option value="960x540">960x540</option>
         <option value="1280x720">1280x720</option>
     </select>
-    <select id="video-transform">
-        <option value="none" selected>No transform</option>
-        <option value="edges">Edge detection</option>
-    </select>
-    <select id="video-codec">
-        <option value="default" selected>Default codecs</option>
-    </select>
-</div>
-<div class="option">
-    <input id="use-stun" checked="checked" type="checkbox"/>
-    <label for="use-stun">Use STUN server</label>
 </div>
 
 <button id="start" onclick="start()">Start</button>
@@ -59,7 +79,8 @@
 <div id="media" style="display: none">
     <h2>Media</h2>
 
-    <video id="video" autoplay="true"></video>
+    <video id="original-video" autoplay="true"></video>
+    <video id="pose-video" autoplay="true"></video>
 </div>
 
 <script src="client.js"></script>

@@ -9,16 +9,15 @@ function createPeerConnection() {
         sdpSemantics: 'unified-plan'
     };
 
-    if (document.getElementById('use-stun').checked) {
-        config.iceServers = [{urls: ['stun:stun.l.google.com:19302']}];
-    }
+    config.iceServers = [{urls: ['stun:stun.l.google.com:19302']}];
 
     var pc = new RTCPeerConnection(config);
 
     // connect video
     pc.addEventListener('track', function(evt) {
         if (evt.track.kind == 'video')
-            document.getElementById('video').srcObject = evt.streams[0];
+            document.getElementById('original-video').srcObject = evt.streams[0];
+            document.getElementById('pose-video').srcObject = evt.streams[0];
     });
 
     return pc;
@@ -46,16 +45,13 @@ function negotiate() {
         var offer = pc.localDescription;
         var codec;
 
-        codec = document.getElementById('video-codec').value;
-        if (codec !== 'default') {
-            offer.sdp = sdpFilterCodec('video', codec, offer.sdp);
-        }
+        codec = "default";
 
+        // What we send back to the server
         return fetch('/offer', {
             body: JSON.stringify({
                 sdp: offer.sdp,
                 type: offer.type,
-                video_transform: document.getElementById('video-transform').value
             }),
             headers: {
                 'Content-Type': 'application/json'
