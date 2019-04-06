@@ -80,10 +80,10 @@ def _zero_heat_map_edges(heat_map_tensor):
     Returns:
         heat_map_tensor (PyTorch tensor): Of size (18, 256, 256)
     """
-    heat_map_tensor[:, :8, :] = np.zeros([18, 8, 256])
-    heat_map_tensor[:, :, :8] = np.zeros([18, 256, 8])
-    heat_map_tensor[:, -8:, :] = np.zeros([18, 8, 256])
-    heat_map_tensor[:, :, -8:] = np.zeros([18, 256, 8])
+    heat_map_tensor[:, :5, :] = np.zeros([18, 5, 256])
+    heat_map_tensor[:, :, :5] = np.zeros([18, 256, 5])
+    heat_map_tensor[:, -5:, :] = np.zeros([18, 5, 256])
+    heat_map_tensor[:, :, -5:] = np.zeros([18, 256, 5])
     return heat_map_tensor
 
 
