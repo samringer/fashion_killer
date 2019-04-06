@@ -25,8 +25,6 @@ pcs = set()
 
 class VideoTransformTrack(VideoStreamTrack):
     def __init__(self, track, transform=None):
-        # TODO: return the actual image that monkey sees
-        # TODO: Also make sure only one Monkey is being used
         super().__init__()  # don't forget this!
         self.track = track
 
@@ -49,7 +47,7 @@ class VideoTransformTrack(VideoStreamTrack):
         if self.transformed_img is None:
             return frame
 
-        out_img = (self.transformed_img*256).astype('uint8')
+        out_img = self.transformed_img.astype('uint8')
 
         # rebuild a VideoFrame, preserving timing information
         # Note that this expects array to be of datatype uint8
@@ -100,9 +98,8 @@ async def offer(request):
 
         if track.kind == 'video':
             if params['transform'] == 'original':
-                pc.addTrack(track)
-                #original_video = VideoTransformTrack(track)
-                #pc.addTrack(original_video)
+                original_video = VideoTransformTrack(track)
+                pc.addTrack(original_video)
             elif params['transform'] == 'pose':
                 pose_video = VideoTransformTrack(track, transform='pose')
                 pc.addTrack(pose_video)

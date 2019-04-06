@@ -138,8 +138,7 @@ def log_results(epoch, step_num, writer, pred_heat_maps, loss):
     # Interpolate up to make img a decent size.
     heat_maps = nn.functional.interpolate(pred_heat_maps[-1], scale_factor=4)
     heat_maps = heat_maps[0].cpu().detach().numpy()
-    heat_map_list = [heat_maps[i] for i in range(heat_maps.shape[0])]
-    pose_img = POSE_DRAWER.draw_pose_from_heatmaps(heat_map_list)
+    pose_img = POSE_DRAWER.draw_pose_from_heatmaps(heat_maps)
     pose_img = torch.Tensor(pose_img).permute(2, 0, 1)
     img_file_name = 'generated_pose/{}'.format(epoch)
     writer.add_image(img_file_name, pose_img, step_num)
