@@ -29,37 +29,27 @@ class VideoTransformTrack(VideoStreamTrack):
         # TODO: Also make sure only one Monkey is being used
         super().__init__()  # don't forget this!
         self.track = track
-        self.transform = transform
 
         # Placeholders
         self.in_img = None
-        self.pose_img = None
+        self.transformed_img = None
 
-        self.monkey = Monkey()
-        # Continuously update the pose img in another thread.
-        #self.worker = Thread(target=self.draw_pose_img)
-        if not transform:
-            self.worker = Thread(target=self.dummy)
-        else:
-            self.worker = Thread(target=self.draw_pose_img)
+        self.monkey = Monkey(transform)
+        # Continuously update the transformed img in another thread.
+        self.worker = Thread(target=self.transform_img)
         self.worker.setDaemon(True)
         self.worker.start()
 
-    def dummy(self):
-        pass
-
     async def recv(self):
         frame = await self.track.recv()
-        if not self.transform:
-            return frame
 
         self.in_img = frame.to_ndarray(format='bgr24')
 
         # Handle initial condition on startup.
-        if self.pose_img is None:
+        if self.transformed_img is None:
             return frame
 
-        out_img = (self.pose_img*256).astype('uint8')
+        out_img = (self.transformed_img*256).astype('uint8')
 
         # rebuild a VideoFrame, preserving timing information
         # Note that this expects array to be of datatype uint8
@@ -68,12 +58,12 @@ class VideoTransformTrack(VideoStreamTrack):
         new_frame.time_base = frame.time_base
         return new_frame
 
-    def draw_pose_img(self):
+    def transform_img(self):
         """
         Detect pose and draw inside a seperate thread.
         """
         while True:
-            self.pose_img = self.monkey.draw_pose_from_img(self.in_img)
+            self.transformed_img = self.monkey.transform_img(self.in_img)
 
 
 async def index(request):

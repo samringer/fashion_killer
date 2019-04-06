@@ -14,18 +14,32 @@ class Monkey:
     Handles all the shapeshifting!
     https://jackiechanadventures.fandom.com/wiki/Monkey_Talisman
     """
-    def __init__(self):
-        self.use_cuda = True
+    def __init__(self, transform):
+        if transform == 'pose':
+            self.use_cuda = True
 
-        self.pose_drawer = Pose_Drawer()
+            self.pose_drawer = Pose_Drawer()
 
-        model_base_path = 'pretrained_models/pose_detector.pt'
-        model = Model()
-        model.load_state_dict(torch.load(model_base_path))
-        model = model.eval()
-        if self.use_cuda:
-            model = model.cuda()
-        self.model = model
+            model_base_path = 'pretrained_models/pose_detector.pt'
+            model = Model()
+            model.load_state_dict(torch.load(model_base_path))
+            model = model.eval()
+            if self.use_cuda:
+                model = model.cuda()
+            self.model = model
+            self.transform_img = self.draw_pose_from_img
+        else:
+            self.transform_img = self.standard_transform
+
+    def standard_transform(self, img):
+        """
+        Permform the standard preprocessing steps on img.
+        Args:
+            img (numpy array)
+        """
+        if img is None:
+            return
+        return _preprocess_input_img(img)
 
     def draw_pose_from_img(self, img):
         """
