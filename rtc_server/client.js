@@ -1,10 +1,10 @@
 // peer connection
-var pc = null;
+var pc_original = null;
+var pc_pose = null;
+pcs = [pc_original, pc_pose];
 
-// data channel
-var dc = null, dcInterval = null;
 
-function createPeerConnection() {
+function createPeerConnection(transform) {
     var config = {
         sdpSemantics: 'unified-plan'
     };
@@ -16,14 +16,15 @@ function createPeerConnection() {
     // connect video
     pc.addEventListener('track', function(evt) {
         if (evt.track.kind == 'video')
-            document.getElementById('original-video').srcObject = evt.streams[0];
-            document.getElementById('pose-video').srcObject = evt.streams[0];
-    });
+            target = transform + "-video";
+            document.getElementById(target).srcObject = evt.streams[0];}
+    );
 
     return pc;
 }
 
-function negotiate() {
+
+function negotiate(pc, transform) {
     return pc.createOffer().then(function(offer) {
         return pc.setLocalDescription(offer);
     }).then(function() {
@@ -47,11 +48,14 @@ function negotiate() {
 
         codec = "default";
 
+        offer_name = '/offer_' + transform
+
         // What we send back to the server
-        return fetch('/offer', {
+        return fetch(offer_name, {
             body: JSON.stringify({
                 sdp: offer.sdp,
                 type: offer.type,
+                transform: transform,
             }),
             headers: {
                 'Content-Type': 'application/json'
@@ -67,10 +71,12 @@ function negotiate() {
     });
 }
 
+
 function start() {
     document.getElementById('start').style.display = 'none';
 
-    pc = createPeerConnection();
+    pc_original = createPeerConnection('original');
+    pc_pose = createPeerConnection('pose');
 
     var time_start = null;
 
@@ -82,23 +88,6 @@ function start() {
             return new Date().getTime() - time_start;
         }
     }
-
-    dc = pc.createDataChannel('chat', {"ordered": true});
-    dc.onclose = function() {
-        clearInterval(dcInterval);
-    };
-    dc.onopen = function() {
-        dcInterval = setInterval(function() {
-            var message = 'ping ' + current_stamp();
-            dc.send(message);
-        }, 1000);
-    };
-    dc.onmessage = function(evt) {
-
-        if (evt.data.substring(0, 4) === 'pong') {
-            var elapsed_ms = current_stamp() - parseInt(evt.data.substring(5), 10);
-        }
-        };
 
     var constraints = {
         video: false
@@ -121,104 +110,43 @@ function start() {
         }
         navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
             stream.getTracks().forEach(function(track) {
-                pc.addTrack(track, stream);
+                pc_original.addTrack(track, stream);
+                pc_pose.addTrack(track, stream);
             });
-            return negotiate();
+            negotiate(pc_original, 'original');
+            return negotiate(pc_pose, 'pose');
         }, function(err) {
             alert('Could not acquire media: ' + err);
         });
     } else {
-        negotiate();
+        negotiate(pc_original, 'original');
+        negotiate(pc_pose, 'pose');
     }
 
     document.getElementById('stop').style.display = 'inline-block';
 }
 
+
 function stop() {
     document.getElementById('stop').style.display = 'none';
 
-    // close data channel
-    if (dc) {
-        dc.close();
-    }
+    // close transceivers for all pcs
+    pcs.forEach(pc => {
+        if (pc.getTransceivers) {
+            pc.getTransceivers().forEach(function(transceiver) {
+                if (transceiver.stop) {
+                    transceiver.stop();
+                }
+            });
+        }
 
-    // close transceivers
-    if (pc.getTransceivers) {
-        pc.getTransceivers().forEach(function(transceiver) {
-            if (transceiver.stop) {
-                transceiver.stop();
-            }
+        // close local video
+        pc.getSenders().forEach(function(sender) {
+            sender.track.stop();
         });
-    }
 
-    // close local video
-    pc.getSenders().forEach(function(sender) {
-        sender.track.stop();
-    });
-
-    // close peer connection
-    setTimeout(function() {
-        pc.close();
-    }, 500);
-}
-
-function sdpFilterCodec(kind, codec, realSdp) {
-    var allowed = []
-    var rtxRegex = new RegExp('a=fmtp:(\\d+) apt=(\\d+)\r$');
-    var codecRegex = new RegExp('a=rtpmap:([0-9]+) ' + escapeRegExp(codec))
-    var videoRegex = new RegExp('(m=' + kind + ' .*?)( ([0-9]+))*\\s*$')
-    
-    var lines = realSdp.split('\n');
-
-    var isKind = false;
-    for (var i = 0; i < lines.length; i++) {
-        if (lines[i].startsWith('m=' + kind + ' ')) {
-            isKind = true;
-        } else if (lines[i].startsWith('m=')) {
-            isKind = false;
-        }
-
-        if (isKind) {
-            var match = lines[i].match(codecRegex);
-            if (match) {
-                allowed.push(parseInt(match[1]));
-            }
-
-            match = lines[i].match(rtxRegex);
-            if (match && allowed.includes(parseInt(match[2]))) {
-                allowed.push(parseInt(match[1]));
-            }
-        }
-    }
-
-    var skipRegex = 'a=(fmtp|rtcp-fb|rtpmap):([0-9]+)';
-    var sdp = '';
-
-    isKind = false;
-    for (var i = 0; i < lines.length; i++) {
-        if (lines[i].startsWith('m=' + kind + ' ')) {
-            isKind = true;
-        } else if (lines[i].startsWith('m=')) {
-            isKind = false;
-        }
-
-        if (isKind) {
-            var skipMatch = lines[i].match(skipRegex);
-            if (skipMatch && !allowed.includes(parseInt(skipMatch[2]))) {
-                continue;
-            } else if (lines[i].match(videoRegex)) {
-                sdp += lines[i].replace(videoRegex, '$1 ' + allowed.join(' ')) + '\n';
-            } else {
-                sdp += lines[i] + '\n';
-            }
-        } else {
-            sdp += lines[i] + '\n';
-        }
-    }
-
-    return sdp;
-}
-
-function escapeRegExp(string) {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+        // close peer connection
+        setTimeout(function() {
+            pc.close();
+        }, 500);})
 }

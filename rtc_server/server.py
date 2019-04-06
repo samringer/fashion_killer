@@ -25,38 +25,41 @@ pcs = set()
 
 class VideoTransformTrack(VideoStreamTrack):
     def __init__(self, track, transform=None):
+        # TODO: return the actual image that monkey sees
+        # TODO: Also make sure only one Monkey is being used
         super().__init__()  # don't forget this!
-        self.counter = 0
         self.track = track
         self.transform = transform
 
-        # Placeholder
+        # Placeholders
         self.in_img = None
+        self.pose_img = None
 
-        if transform:
-            self.pose_img = None
-            self.monkey = Monkey()
-            # Continuously update the pose img in another thread.
+        self.monkey = Monkey()
+        # Continuously update the pose img in another thread.
+        #self.worker = Thread(target=self.draw_pose_img)
+        if not transform:
+            self.worker = Thread(target=self.dummy)
+        else:
             self.worker = Thread(target=self.draw_pose_img)
-            self.worker.setDaemon(True)
-            self.worker.start()
+        self.worker.setDaemon(True)
+        self.worker.start()
 
+    def dummy(self):
+        pass
 
     async def recv(self):
         frame = await self.track.recv()
-        self.counter += 1
+        if not self.transform:
+            return frame
 
         self.in_img = frame.to_ndarray(format='bgr24')
 
-        # Hanlde initial condition on startup.
+        # Handle initial condition on startup.
         if self.pose_img is None:
             return frame
 
-        if self.transform:
-            out_img = (self.pose_img*256).astype('uint8')
-        else:
-            # TODO: return the actual image that monkey sees
-            out_img = self.in_img
+        out_img = (self.pose_img*256).astype('uint8')
 
         # rebuild a VideoFrame, preserving timing information
         # Note that this expects array to be of datatype uint8
@@ -106,10 +109,13 @@ async def offer(request):
         log_info('Track %s received', track.kind)
 
         if track.kind == 'video':
-            #original_video = VideoTransformTrack(track)
-            pose_video = VideoTransformTrack(track, transform='pose')
-            #pc.addTrack(original_video)
-            pc.addTrack(pose_video)
+            if params['transform'] == 'original':
+                pc.addTrack(track)
+                #original_video = VideoTransformTrack(track)
+                #pc.addTrack(original_video)
+            elif params['transform'] == 'pose':
+                pose_video = VideoTransformTrack(track, transform='pose')
+                pc.addTrack(pose_video)
 
         @track.on('ended')
         async def on_ended():
@@ -163,5 +169,6 @@ if __name__ == '__main__':
     app.on_shutdown.append(on_shutdown)
     app.router.add_get('/', index)
     app.router.add_get('/client.js', javascript)
-    app.router.add_post('/offer', offer)
+    app.router.add_post('/offer_original', offer)
+    app.router.add_post('/offer_pose', offer)
     web.run_app(app, access_log=None, port=args.port, ssl_context=ssl_context)
