@@ -20,16 +20,29 @@ POSE_DRAWER = Pose_Drawer()
 def train(exp_path):
     logger, models_path = _prepare_experiment_dirs(exp_path)
     data_loader, model, optimizer = _get_training_objects()
+    lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.5)
+
+    if hp.checkpoint_load_path:
+        with open(hp.checkpoint_load_path, 'rb') as in_f:
+            model_state_dict, optimizer_state_dict = pickle.load(in_f)
+            model.load_state_dict(model_state_dict)
+            optimizer.load_state_dict(optimizer_state_dict)
+        print('Loaded from checkpoint {}'.format(hp.checkpoint_load_path))
 
     for epoch in range(hp.num_epochs):
         torch.save(model.state_dict(), join(models_path, '{}.pt'.format(epoch)))
+        lr_scheduler.step()
         for i, batch in enumerate(data_loader):
             step_num = (epoch*len(data_loader))+i
             pred_heat_maps, loss = _training_step(batch, model, optimizer)
-            print(loss)
+            print(step_num, f"{loss.item():.3f}")
 
             if step_num % hp.ts_log_interval == 0:
                 log_results(epoch, step_num, logger, pred_heat_maps, loss)
+
+            if step_num % hp.checkpoint_interval == 0:
+                save_path = join(models_path, '{}.chk'.format(step_num))
+                _checkpoint(model, optimizer, save_path)
 
 
 def _prepare_experiment_dirs(exp_path):
@@ -47,6 +60,12 @@ def _prepare_experiment_dirs(exp_path):
     logger = SummaryWriter(logs_path)
 
     return logger, models_path
+
+
+def _checkpoint(model, optimizer, save_path):
+    with open(save_path, 'wb') as out_f:
+        pickle.dump((model.state_dict(), optimizer.state_dict()), out_f)
+    print('Model & optimizer checkpointed at {}'.format(save_path))
 
 
 def _get_training_objects():

@@ -116,22 +116,23 @@ class Pose_Detector_Dataset(Dataset):
         p_a_f_loss_mask = []
 
         for i, limb in enumerate(desired_connections):
-            p_a_f = np.zeros([self.max_dim, self.max_dim])
+            p_a_f = np.zeros([2, self.max_dim, self.max_dim])
             start_joint, end_joint = limb
             start_point = keypoints[start_joint.value]
             end_point = keypoints[end_joint.value]
 
             if start_point != (0, 0) and end_point != (0, 0):
-                p_a_f_loss_mask.append(1.)
+                p_a_f_loss_mask.extend([1., 1.])
                 p_a_f = _draw_part_affinity_field(start_point,
                                                   end_point,
                                                   p_a_f)
             else:
-                p_a_f_loss_mask.append(0.)
+                p_a_f_loss_mask.extend([0., 0.])
 
             part_affinity_fields.append(torch.from_numpy(p_a_f))
 
-        part_affinity_fields = torch.stack(part_affinity_fields, dim=0)
+
+        part_affinity_fields = torch.cat(part_affinity_fields)
 
         return part_affinity_fields, torch.Tensor(p_a_f_loss_mask)
 
@@ -367,29 +368,15 @@ def _draw_part_affinity_field(start_point, end_point, canvas):
     l_right = start_point - perp_vec + limb_vec
     rect = [u_left, l_left, l_right, u_right, u_left]
 
-    img = Image.fromarray(canvas)
-    draw = ImageDraw.Draw(img)
-    draw.polygon([tuple(p) for p in rect], fill=1)
-    canvas = np.asarray(img)
-    canvas = 0.9 * (canvas + 0.1)  # Label smoothing
+    # We are drawing a 2d vector on the PAFs.
+    # To interact with the draw API we need to split canvas in two.
+    img_0 = Image.fromarray(canvas[0, :, :])
+    img_1 = Image.fromarray(canvas[1, :, :])
+    for i, img in enumerate([img_0, img_1]):
+        draw = ImageDraw.Draw(img)
+        draw.polygon([tuple(p) for p in rect], fill=1)
+
+    img_0 *= unit_vec[0]
+    img_1 *= unit_vec[1]
+    canvas = np.stack([np.asarray(img_0), np.asarray(img_1)])
     return canvas.astype(float)
-
-    """
-    def _is_point_on_limb(point):
-        test_vec = np.subtract(point, start_point)
-
-        projection_on_length = sum(test_vec * unit_vec)
-        projection_on_width = sum(test_vec * perp_unit_vec)
-
-        within_length = 0 <= projection_on_length <= limb_vec_length
-        within_width = abs(projection_on_width) <= limb_pixel_width
-        return within_length and within_width
-
-    # Check if each pixel on np canvas lies on the limb.
-    for i in range(canvas.shape[1]):
-        for j in range(canvas.shape[2]):
-            if _is_point_on_limb([i, j]):
-                # This is how the paper chooses to construct PAFs.
-                canvas[:, j, i] = unit_vec
-    return canvas
-    """

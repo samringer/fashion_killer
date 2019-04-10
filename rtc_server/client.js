@@ -73,6 +73,7 @@ function negotiate(pc, transform) {
 
 
 function start() {
+    document.getElementById('start').style.display = 'none';
     pc_original = createPeerConnection('original');
     pc_pose = createPeerConnection('pose');
 
@@ -124,9 +125,9 @@ function start() {
     document.getElementById('stop').style.display = 'inline-block';
 }
 
-document.addEventListener('DOMContentLoaded', function(){
-                                            start()
-                                            }, false);
+//document.addEventListener('DOMContentLoaded', function(){
+//                                            start()
+//                                            }, false);
 
 
 function stop() {

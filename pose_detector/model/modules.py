@@ -14,7 +14,7 @@ class Limb_Block(nn.Module):
         self.conv_block_4 = Conv_Block(in_c)
         self.conv_block_5 = Conv_Block(in_c)
         self.conv_1x1a = Conv_Layer(in_c, in_c, kernel_size=1, padding=0)
-        self.conv_1x1b = Conv_Layer(in_c, hp.num_limbs,
+        self.conv_1x1b = Conv_Layer(in_c, hp.num_limbs*2,
                                     kernel_size=1, padding=0)
 
     def forward(self, x):
@@ -24,9 +24,10 @@ class Limb_Block(nn.Module):
         x = self.conv_block_4(x)
         x = self.conv_block_5(x)
         x = self.conv_1x1a(x)
-        x = self.conv_1x1b(x)
-        paf = nn.Sigmoid()(x)
+        paf = self.conv_1x1b(x)
+        #paf = nn.Tanh()(x)
         return paf
+
 
 class Joint_Block(nn.Module):
 

@@ -13,10 +13,11 @@ class Model(nn.Module):
         self.VGG = get_custom_VGG19()
 
         self.limb_block_1 = Limb_Block(256)
-        self.limb_block_2 = Limb_Block(256+hp.num_limbs)
-        self.limb_block_3 = Limb_Block(256+hp.num_limbs)
+        self.limb_block_2 = Limb_Block(256+2*hp.num_limbs)
+        self.limb_block_3 = Limb_Block(256+2*hp.num_limbs)
 
-        self.joint_block_1 = Joint_Block(256+hp.num_limbs)
+        self.joint_block_1 = Joint_Block(256+2*hp.num_limbs)
+        self.joint_block_2 = Joint_Block(256+2*hp.num_limbs+hp.num_joints)
 
     def forward(self, x):
         F = self.VGG(x)
@@ -30,9 +31,10 @@ class Model(nn.Module):
 
         x = torch.cat((F, limb_map_3), dim=1)
         joint_map_1 = self.joint_block_1(x)
-        # TODO: if we add more than one joint blocks with the limb blocks
-        # then we need to follow the catting scheme in the paper.
+
+        x = torch.cat((F, limb_map_3, joint_map_1), dim=1)
+        joint_map_2 = self.joint_block_2(x)
 
         part_affinity_fields = [limb_map_1, limb_map_2, limb_map_3]
-        heat_maps = [joint_map_1]
+        heat_maps = [joint_map_1, joint_map_2]
         return part_affinity_fields, heat_maps

@@ -45,7 +45,7 @@ class V_U_Net_Dataset(Dataset):
         if self.overtrain:
             index = 0
 
-        orig_img, pose_img, localised_joints = self.prepare_input_data(index)
+        orig_img, pose_img, localised_joints = self._prepare_input_data(index)
         orig_img = self.trans(orig_img)
         pose_img = self.trans(pose_img).float()
 
@@ -57,7 +57,7 @@ class V_U_Net_Dataset(Dataset):
                 'pose_img': pose_img,
                 'localised_joints': localised_joints}
 
-    def prepare_input_data(self, index):
+    def _prepare_input_data(self, index):
         """
         Prepares data for input into the model.
         DOES NOT transform into PyTorch tensor and normalise.
@@ -68,9 +68,44 @@ class V_U_Net_Dataset(Dataset):
         orig_img = Image.open(str(img_path))
 
         joint_raw_pos = self.data['joints'][index]
+        print(_rearrange_keypoints(joint_raw_pos))
         joint_pixel_pos = (joint_raw_pos*hp.image_edge_size).astype('int')
 
         pose_img = self.pose_drawer.draw_pose_from_keypoints(joint_pixel_pos)
         localised_joints = get_localised_joints(orig_img, self.joints_to_localise, joint_pixel_pos)
 
         return orig_img, pose_img, localised_joints
+
+
+def _rearrange_keypoints(keypoints):
+    """
+    The order of the joints in the keypoints used by the
+    deepfashion dataset is different from that used for COCO.
+    Rearrange deepfashion keypoints to be in order of COCO.
+    Args:
+        keypoints (list): list of the keypoints in x y list pairs
+    """
+    new_keypoints = np.zeros_like(keypoints)
+    for old_pos, new_pos in deepfashion_coco_mapping.items():
+        new_keypoints[new_pos] = keypoints[old_pos]
+    return new_keypoints
+
+deepfashion_coco_mapping = {
+    0: 0,
+    1: 1,
+    2: 2,
+    3: 3,
+    4: 4,
+    5: 5,
+    6: 6,
+    7: 7,
+    8: 8,
+    9: 9,
+    10: 10,
+    11: 11,
+    12: 12,
+    13: 13,
+    14: 14,
+    15: 15,
+    16: 16
+}

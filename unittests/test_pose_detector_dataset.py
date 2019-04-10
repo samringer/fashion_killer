@@ -51,7 +51,7 @@ class Dataset_Unittester(unittest.TestCase):
         self.assertEqual(list(part_affinity_fields.shape),
                          [17*2, self.dataset.max_dim, self.dataset.max_dim])
         self.assertEqual(list(kp_loss_mask.shape), [18])
-        self.assertEqual(list(p_a_f_loss_mask.shape), [17])
+        self.assertEqual(list(p_a_f_loss_mask.shape), [17*2])
 
     def test_prepare_img(self):
         """

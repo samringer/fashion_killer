@@ -39,7 +39,7 @@ class DataLoader_Unittests(unittest.TestCase):
                          [self.batch_size, 17*2, 256, 256])
         self.assertEqual(list(kp_loss_mask.shape), [self.batch_size, 18])
         self.assertEqual(list(p_a_f_loss_mask.shape),
-                         [self.batch_size, 17])
+                         [self.batch_size, 17*2])
 
 
 if __name__ == "__main__":
