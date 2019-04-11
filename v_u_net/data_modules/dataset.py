@@ -68,7 +68,7 @@ class V_U_Net_Dataset(Dataset):
         orig_img = Image.open(str(img_path))
 
         joint_raw_pos = self.data['joints'][index]
-        print(_rearrange_keypoints(joint_raw_pos))
+        joint_raw_pos = _rearrange_keypoints(joint_raw_pos)
         joint_pixel_pos = (joint_raw_pos*hp.image_edge_size).astype('int')
 
         pose_img = self.pose_drawer.draw_pose_from_keypoints(joint_pixel_pos)
@@ -86,26 +86,28 @@ def _rearrange_keypoints(keypoints):
         keypoints (list): list of the keypoints in x y list pairs
     """
     new_keypoints = np.zeros_like(keypoints)
-    for old_pos, new_pos in deepfashion_coco_mapping.items():
+    for old_pos, new_pos in DEEPFASHION_COCO_MAPPING.items():
         new_keypoints[new_pos] = keypoints[old_pos]
     return new_keypoints
 
-deepfashion_coco_mapping = {
-    0: 0,
-    1: 1,
-    2: 2,
-    3: 3,
-    4: 4,
-    5: 5,
-    6: 6,
-    7: 7,
-    8: 8,
-    9: 9,
-    10: 10,
-    11: 11,
-    12: 12,
-    13: 13,
-    14: 14,
-    15: 15,
-    16: 16
+# Comments are the originals
+DEEPFASHION_COCO_MAPPING = {
+    0: 0, # nose
+    1: 1, # neck
+    2: 7, # right shoulder
+    3: 9, # right elbow
+    4: 11, # right hand
+    5: 6, # left shoulder
+    6: 8, # left elbow
+    7: 10, # left hand
+    8: 13, # right waist
+    9: 15, # right knee
+    10: 17, # right foot
+    11: 12, # left waist
+    12: 14, # left knee
+    13: 16, # left foot
+    14: 3, # right eye
+    15: 2, # left eye
+    16: 3, # right ear
+    17: 4, # left ear
 }
