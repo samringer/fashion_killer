@@ -6,11 +6,12 @@ from torch.utils.data import DataLoader
 
 from v_u_net.data_modules.dataset import VUNetDataset
 from v_u_net.model.V_U_Net import VUNet
-from v_u_net.train import _training_step
+from v_u_net.train import _train_step
 
 FUNCTESTS_DIRECTORY = dirname(realpath(__file__))
 
 
+# TODO: These all need to be done more professionally like in the metalearning repo
 class TestVUNetTrain(unittest.TestCase):
     """
     Test the ability of the VUNet train code to run a complete forward
@@ -27,7 +28,7 @@ class TestVUNetTrain(unittest.TestCase):
         optimizer = optim.Adam(model.parameters(), lr=0.001)
 
         batch = next(iter(dataloader))
-        output = _training_step(batch, model, optimizer)
+        output = _train_step(batch, model, optimizer)
         gen_img, total_loss, l1_loss, kl_divergence = output
 
         # TODO: 

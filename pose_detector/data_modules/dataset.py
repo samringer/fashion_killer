@@ -13,11 +13,11 @@ from PIL import Image, ImageDraw
 from pose_drawer.pose_settings import Pose_Settings
 
 
-class Pose_Detector_Dataset(Dataset):
+class PoseDetectorDataset(Dataset):
     """
     Dataset consists of images with associated keypoint heatmaps.
     """
-    def __init__(self, root_data_dir,
+    def __init__(self, root_data_dir='/home/sam/data/COCO',
                  overtrain=False,
                  min_joints_to_train_on=6):
 

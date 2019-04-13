@@ -17,7 +17,8 @@ class VUNetDataset(Dataset):
     Dataset consists of pairs of original and pose extracted images
     """
 
-    def __init__(self, root_data_dir, overtrain=False):
+    def __init__(self, root_data_dir='/home/sam/data/deepfashion',
+                 overtrain=False):
         """
         Args:
             root_data_dir (str): Path to directory containing data.
@@ -33,7 +34,6 @@ class VUNetDataset(Dataset):
         self.trans = transforms.Compose([
             transforms.ToTensor(),
         ])
-        #transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 
         self.joints_to_localise = [joint.value for joint in hp.joints_to_localise]
         self.pose_drawer = Pose_Drawer()
@@ -49,6 +49,7 @@ class VUNetDataset(Dataset):
         orig_img = self.trans(orig_img)
         pose_img = self.trans(pose_img).float()
 
+        # TODO: think this can change now not normalising
         # Need to normalise one by one as lots of the images are black
         localised_joints = [self.trans(joint_img) for joint_img in localised_joints]
         localised_joints = torch.cat(localised_joints, dim=0).float()

@@ -25,7 +25,6 @@ class Limb_Block(nn.Module):
         x = self.conv_block_5(x)
         x = self.conv_1x1a(x)
         paf = self.conv_1x1b(x)
-        #paf = nn.Tanh()(x)
         return paf
 
 
@@ -73,7 +72,7 @@ class Conv_Layer(nn.Module):
         super().__init__()
         self.conv = nn.Conv2d(in_c, out_c, kernel_size, padding=padding,
                               bias=False)
-        self.l_relu = nn.LeakyReLU(negative_slope=hp.leakiness)
+        self.l_relu = nn.LeakyReLU(negative_slope=0.2)
         self.bn = nn.BatchNorm2d(out_c)
 
     def forward(self, x):

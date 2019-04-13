@@ -39,7 +39,7 @@ class DecoderBlock(nn.Module):
 class EncResLayer(nn.Module):
     def __init__(self, in_c):
         super().__init__()
-        self.l_relu = nn.LeakyReLU(negative_slope=hp.leakiness)
+        self.l_relu = nn.LeakyReLU(negative_slope=0.2)
         self.conv_1 = nn.Conv2d(in_c, in_c, 3, padding=1)
         self.conv_2 = nn.Conv2d(in_c, in_c, 3, padding=1)
 
@@ -58,7 +58,7 @@ class DecResLayer(nn.Module):
         self.proj = nn.Conv2d(in_c, in_c//2, 1)
         self.conv_1 = nn.Conv2d(in_c, in_c, 3, padding=1)
         self.conv_2 = nn.Conv2d(in_c, in_c//2, 3, padding=1)
-        self.l_relu = nn.LeakyReLU(negative_slope=hp.leakiness)
+        self.l_relu = nn.LeakyReLU(negative_slope=0.2)
 
     def forward(self, x):
         res = x

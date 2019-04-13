@@ -4,9 +4,9 @@ from os.path import join, dirname, realpath
 from torch import optim
 from torch.utils.data import DataLoader
 
-from pose_detector.data_modules.dataset import Pose_Detector_Dataset
-from pose_detector.model.model import Model
-from pose_detector.train import _training_step
+from pose_detector.data_modules.dataset import PoseDetectorDataset
+from pose_detector.model.model import PoseDetector
+from pose_detector.train import _train_step
 
 FUNCTESTS_DIRECTORY = dirname(realpath(__file__))
 
@@ -19,15 +19,15 @@ class TestPoseDetectorTrain(unittest.TestCase):
 
     def test_train(self):
         datadir = join(FUNCTESTS_DIRECTORY, 'data/pose_detector')
-        dataset = Pose_Detector_Dataset(datadir)
+        dataset = PoseDetectorDataset(datadir)
         dataloader = DataLoader(dataset, batch_size=1)
-        model = Model()
+        model = PoseDetector()
         # TODO: 
         model = model.cuda()
         optimizer = optim.Adam(model.parameters(), lr=0.001)
 
         batch = next(iter(dataloader))
-        output = _training_step(batch, model, optimizer)
+        output = _train_step(batch, model, optimizer)
         pred_pafs, pred_heat_maps, loss = output
 
         # TODO: 

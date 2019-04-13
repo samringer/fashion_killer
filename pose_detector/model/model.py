@@ -6,7 +6,7 @@ from pose_detector.model.custom_VGG19 import get_custom_VGG19
 import pose_detector.hyperparams as hp
 
 
-class Model(nn.Module):
+class PoseDetector(nn.Module):
 
     def __init__(self):
         super().__init__()

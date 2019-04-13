@@ -1,95 +1,86 @@
-import argparse
 import pickle
-from os import mkdir
-from os.path import join, exists
+from os.path import join
 
+from absl import flags, app
 import torch
 from torch import nn, optim
-from tensorboardX import SummaryWriter
+from torch.utils.data import DataLoader
 from apex import amp
 
-from pose_detector.model.model import Model
-import pose_detector.hyperparams as hp
-from pose_detector.data_modules.dataloader import Pose_Detector_DataLoader
+from pose_detector.model.model import PoseDetector
+from pose_detector.data_modules.dataset import PoseDetectorDataset
 from pose_drawer.pose_drawer import Pose_Drawer
+from util import (save_checkpoint,
+                  load_checkpoint,
+                  prepare_experiment_dirs,
+                  get_tb_logger)
 
 POSE_DRAWER = Pose_Drawer()
 
-
-def train(exp_path):
-    logger, models_path = _prepare_experiment_dirs(exp_path)
-    data_loader, model, optimizer = _get_training_objects()
-    lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.5)
-
-    if hp.checkpoint_load_path:
-        with open(hp.checkpoint_load_path, 'rb') as in_f:
-            model_state_dict, optimizer_state_dict = pickle.load(in_f)
-            model.load_state_dict(model_state_dict)
-            optimizer.load_state_dict(optimizer_state_dict)
-        print('Loaded from checkpoint {}'.format(hp.checkpoint_load_path))
-
-    for epoch in range(hp.num_epochs):
-        torch.save(model.state_dict(), join(models_path, '{}.pt'.format(epoch)))
-        lr_scheduler.step()
-        for i, batch in enumerate(data_loader):
-            step_num = (epoch*len(data_loader))+i
-            _, pred_heat_maps, loss = _training_step(batch, model, optimizer)
-            print(step_num, f"{loss.item():.3f}")
-
-            if step_num % hp.ts_log_interval == 0:
-                log_results(epoch, step_num, logger, pred_heat_maps, loss)
-
-            if step_num % hp.checkpoint_interval == 0:
-                save_path = join(models_path, '{}.chk'.format(step_num))
-                _checkpoint(model, optimizer, save_path)
+FLAGS = flags.FLAGS
+flags.DEFINE_boolean('over_train', False, "Overtrain on one datapoint")
+flags.DEFINE_float('learning_rate', 1e-4, "Starting learning rate")
+flags.DEFINE_integer('batch_size', 4, "Batch size to use when training")
+flags.DEFINE_integer('num_epochs', 10, "Number of training epochs")
+flags.DEFINE_integer('min_joints_to_train_on', 10,
+                     "The minimum num of joints an image should \
+                      contain to be used as training data")
 
 
-def _prepare_experiment_dirs(exp_path):
-    if not exists(exp_path):
-        mkdir(exp_path)
+def train(unused_argv):
+    # TODO: Assert that the flags are set correctly before doing this
+    models_path = prepare_experiment_dirs()
+    logger = get_tb_logger()
 
-    models_path = join(exp_path, 'models')
-    if not exists(models_path):
-        mkdir(models_path)
-
-    logs_path = join(exp_path, 'logs')
-    if not exists(logs_path):
-        mkdir(logs_path)
-
-    logger = SummaryWriter(logs_path)
-
-    return logger, models_path
-
-
-def _checkpoint(model, optimizer, save_path):
-    with open(save_path, 'wb') as out_f:
-        pickle.dump((model.state_dict(), optimizer.state_dict()), out_f)
-    print('Model & optimizer checkpointed at {}'.format(save_path))
-
-
-def _get_training_objects():
-    model = Model()
-    if hp.use_cuda:
+    model = PoseDetector()
+    if FLAGS.use_cuda:
         model = model.cuda()
 
-    data_loader = Pose_Detector_DataLoader(hp.batch_size, overtrain=hp.overtrain, min_joints_to_train_on=hp.min_joints_to_train_on)
+    dataset = PoseDetectorDataset(overtrain=FLAGS.over_train,
+                                  min_joints_to_train_on=FLAGS.min_joints_to_train_on)
+    dataloader = DataLoader(dataset, batch_size=FLAGS.batch_size,
+                            shuffle=True, num_workers=4, pin_memory=True)
 
-    optimizer = optim.Adam(model.parameters(), lr=hp.learning_rate)
+    optimizer = optim.Adam(model.parameters(), lr=FLAGS.learning_rate)
 
-    if hp.use_fp16:
-        model, optimzer = amp.initialize(model, optimizer, opt_level='O1')
+    if FLAGS.use_fp16:
+        model, optimizer = amp.initialize(model, optimizer,
+                                          opt_level='O1')
 
-    return data_loader, model, optimizer
+    lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.5)
+
+    if FLAGS.load_checkpoint:
+        model, optimizer = load_checkpoint(model, optimizer)
+        print('Loaded from checkpoint {}'.format(FLAGS.load_checkpoint))
+
+    for epoch in range(FLAGS.num_epochs):
+        lr_scheduler.step()
+
+        # Save a model at the start of each epoch
+        save_path = join(models_path, '{}.pt'.format(epoch))
+        torch.save(model.state_dict(), save_path)
+
+        for i, batch in enumerate(dataloader):
+            step_num = epoch*len(dataloader) + i
+            _, pred_heat_maps, loss = _train_step(batch, model, optimizer)
+
+            if step_num % FLAGS.tb_log_interval == 0:
+                log_results(epoch, step_num, logger, pred_heat_maps, loss)
+            if step_num % FLAGS.checkpoint_interval == 0:
+                save_path = join(models_path, '{}.chk'.format(step_num))
+                save_checkpoint(model, optimizer, save_path)
+                print('Model & optimizer checkpointed at {}'.format(save_path))
+            print(step_num, f"{loss.item():.3f}")
 
 
-def _training_step(batch, model, optimizer):
+def _train_step(batch, model, optimizer):
     img = batch['img']
     true_heat_maps = batch['keypoint_heat_maps']
     true_pafs = batch['part_affinity_fields']
     kp_loss_mask = batch['kp_loss_mask']
     paf_loss_mask = batch['p_a_f_loss_mask']
 
-    if hp.use_cuda:
+    if FLAGS.use_cuda:
         img = img.cuda()
         true_heat_maps = true_heat_maps.cuda()
         true_pafs = true_pafs.cuda()
@@ -98,8 +89,7 @@ def _training_step(batch, model, optimizer):
 
     pred_pafs, pred_heat_maps = model(img)
 
-    # Need to scale down ground truth
-    # by a factor of 4 to make dims match.
+    # Need to scale down ground truth by factor of 4 to make dims match.
     true_heat_maps = nn.MaxPool2d(4)(true_heat_maps)
     true_pafs = nn.MaxPool2d(4)(true_pafs)
 
@@ -110,7 +100,7 @@ def _training_step(batch, model, optimizer):
     loss = hm_loss + paf_loss
 
     optimizer.zero_grad()
-    if hp.use_fp16:
+    if FLAGS.use_fp16:
         with amp.scale_loss(loss, optimizer) as scaled_loss:
             scaled_loss.backward()
     else:
@@ -170,11 +160,4 @@ def log_results(epoch, step_num, writer, pred_heat_maps, loss):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--exp_name', required=True)
-    parser.add_argument('--root_log_dir', default='/home/sam/experiments/Pose_Detector')
-    args = parser.parse_args()
-
-    exp_path = join(args.root_log_dir, args.exp_name)
-
-    train(exp_path)
+    app.run(train)
