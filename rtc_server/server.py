@@ -29,39 +29,72 @@ class VideoTransformTrack(VideoStreamTrack):
         self.track = track
 
         # Placeholders
-        self.in_img = None
-        self.transformed_img = None
+        self._in_img = None
+        self._pose_img = None
+        self._app_img = None
+        self._out_img = None
 
         self.monkey = Monkey(transform)
-        # Continuously update the transformed img in another thread.
-        self.worker = Thread(target=self.transform_img)
-        self.worker.setDaemon(True)
-        self.worker.start()
+
+        # Continuously update imgs in other threads
+        if transform == 'app_transfer':
+            worker_1 = Thread(target=self._pose_detection)
+            worker_1.setDaemon(True)
+            worker_1.start()
+            worker_2 = Thread(target=self._appearance_transer)
+            worker_2.setDaemon(True)
+            worker_2.start()
+            self._out_img = self._app_img
+        elif transform == 'pose':
+            worker = Thread(target=self._pose_detection)
+            worker.setDaemon(True)
+            worker.start()
+            self._out_img = self._pose_img
+        else:
+            worker = Thread(target=self._std_transform)
+            worker.setDaemon(True)
+            worker.start()
 
     async def recv(self):
         frame = await self.track.recv()
 
-        self.in_img = frame.to_ndarray(format='bgr24')
+        self._in_img = frame.to_ndarray(format='rgb24')
 
         # Handle initial condition on startup.
-        if self.transformed_img is None:
+        if self._out_img is None:
             return frame
 
-        out_img = self.transformed_img.astype('uint8')
+        out_img = self._out_img.astype('uint8')
 
         # rebuild a VideoFrame, preserving timing information
         # Note that this expects array to be of datatype uint8
-        new_frame = VideoFrame.from_ndarray(out_img, format='bgr24')
+        new_frame = VideoFrame.from_ndarray(out_img, format='rgb24')
         new_frame.pts = frame.pts
         new_frame.time_base = frame.time_base
         return new_frame
 
-    def transform_img(self):
+    def _std_transform(self):
         """
-        Detect pose and draw inside a seperate thread.
+        This is run in a thread only when we are doing no transform.
+        It only performs the monkey preprocessing on the image.
         """
         while True:
-            self.transformed_img = self.monkey.transform_img(self.in_img)
+            self._out_img = self.monkey.preprocess_img(self._in_img)
+
+    def _pose_detection(self):
+        """
+        Extracts the pose from an input image.
+        Used for both pose extraction and appearance transfer.
+        """
+        while True:
+            self._pose_img = self.monkey.draw_pose_from_img(self._in_img)
+
+    def _appearance_transer(self):
+        """
+        Uses the pose image to perform appearance transfer.
+        """
+        while True:
+            self._out_img = self.monkey.transfer_appearance(self._pose_img)
 
 
 async def index(request):
@@ -100,9 +133,9 @@ async def offer(request):
             if params['transform'] == 'original':
                 original_video = VideoTransformTrack(track)
                 pc.addTrack(original_video)
-            elif params['transform'] == 'pose':
-                pose_video = VideoTransformTrack(track, transform='pose')
-                pc.addTrack(pose_video)
+            elif params['transform'] == 'app_transfer':
+                app_transfer_video = VideoTransformTrack(track, transform='app_transfer')
+                pc.addTrack(app_transfer_video)
 
         @track.on('ended')
         async def on_ended():
@@ -157,5 +190,5 @@ if __name__ == '__main__':
     app.router.add_get('/', index)
     app.router.add_get('/client.js', javascript)
     app.router.add_post('/offer_original', offer)
-    app.router.add_post('/offer_pose', offer)
+    app.router.add_post('/offer_app_transfer', offer)
     web.run_app(app, access_log=None, port=args.port, ssl_context=ssl_context)

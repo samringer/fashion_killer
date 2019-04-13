@@ -7,7 +7,6 @@ import torch
 from torch import nn, optim
 from tensorboardX import SummaryWriter
 from apex import amp
-amp_handle = amp.init()
 
 from pose_detector.model.model import Model
 import pose_detector.hyperparams as hp
@@ -34,7 +33,7 @@ def train(exp_path):
         lr_scheduler.step()
         for i, batch in enumerate(data_loader):
             step_num = (epoch*len(data_loader))+i
-            pred_heat_maps, loss = _training_step(batch, model, optimizer)
+            _, pred_heat_maps, loss = _training_step(batch, model, optimizer)
             print(step_num, f"{loss.item():.3f}")
 
             if step_num % hp.ts_log_interval == 0:
@@ -77,6 +76,9 @@ def _get_training_objects():
 
     optimizer = optim.Adam(model.parameters(), lr=hp.learning_rate)
 
+    if hp.use_fp16:
+        model, optimzer = amp.initialize(model, optimizer, opt_level='O1')
+
     return data_loader, model, optimizer
 
 
@@ -109,13 +111,13 @@ def _training_step(batch, model, optimizer):
 
     optimizer.zero_grad()
     if hp.use_fp16:
-        with amp_handle.scale_loss(loss, optimizer) as scaled_loss:
+        with amp.scale_loss(loss, optimizer) as scaled_loss:
             scaled_loss.backward()
     else:
         loss.backward()
     optimizer.step()
 
-    return pred_heat_maps, loss
+    return pred_pafs, pred_heat_maps, loss
 
 
 def get_heatmap_loss(pred_heat_maps, true_heat_maps, kp_loss_mask):

@@ -1,4 +1,5 @@
 import argparse
+import pickle
 from os import mkdir
 from os.path import join, exists
 
@@ -6,27 +7,40 @@ import torch
 from torch import nn, optim
 from tensorboardX import SummaryWriter
 from apex import amp
-amp_handle = amp.init()
 
-from Fashion_Killer.Model.Model import Model
-import Fashion_Killer.hyperparams as hp
+from v_u_net.model.V_U_Net import VUNet
+import v_u_net.hyperparams as hp
+from v_u_net.data_modules.dataloader import VUNetDataLoader
 #from Model.Custom_VGG19 import get_custom_VGG19
-from Fashion_Killer.DataLoader import get_Fashion_Killer_DataLoader
 
 
 def train(exp_path):
     logger, models_path = _prepare_experiment_dirs(exp_path)
     data_loader, model, optimizer = _get_training_objects()
+    lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.8)
+
+    if hp.checkpoint_load_path:
+        with open(hp.checkpoint_load_path, 'rb') as in_f:
+            model_state_dict, optimizer_state_dict = pickle.load(in_f)
+            model.load_state_dict(model_state_dict)
+            optimizer.load_state_dict(optimizer_state_dict)
+        print('Loaded from checkpoint {}'.format(hp.checkpoint_load_path))
 
     for epoch in range(hp.num_epochs):
         torch.save(model.state_dict(), join(models_path, '{}.pt'.format(epoch)))
+        lr_scheduler.step()
         for i, batch in enumerate(data_loader):
             step_num = (epoch*len(data_loader))+i
             gen_img, loss, l1_loss, kl_divergence = _training_step(batch, model, optimizer)
-            print(loss)
+
+            print(step_num, f"{loss.item():.3f}")
 
             if step_num % hp.ts_log_interval == 0:
                 log_results(epoch, step_num, logger, gen_img, loss, l1_loss, kl_divergence)
+
+            if step_num % hp.checkpoint_interval == 0:
+                save_path = join(models_path, '{}.chk'.format(step_num))
+                _checkpoint(model, optimizer, save_path)
 
 
 def _prepare_experiment_dirs(exp_path):
@@ -46,20 +60,30 @@ def _prepare_experiment_dirs(exp_path):
     return logger, models_path
 
 
+def _checkpoint(model, optimizer, save_path):
+    with open(save_path, 'wb') as out_f:
+        pickle.dump((model.state_dict(), optimizer.state_dict()), out_f)
+    print('Model & optimizer checkpointed at {}'.format(save_path))
+
+
 def _get_training_objects():
-    model = Model()
+    model = VUNet()
     #VGG = get_custom_VGG19().eval()
     if hp.use_cuda:
         #VGG = VGG.cuda()
         model = model.cuda()
 
-    data_loader = get_Fashion_Killer_DataLoader(hp.bs)
-    optimizer = optim.Adam(model.parameters(), lr=hp.learning_rate, betas=(hp.beta_1, hp.beta_2))
+    data_loader = VUNetDataLoader(hp.bs, overtrain=hp.overtrain)
+    optimizer = optim.Adam(model.parameters(), lr=hp.learning_rate)
+
+    if hp.use_fp16:
+        model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
+
     return data_loader, model, optimizer
 
 
 def _training_step(batch, model, optimizer):
-    orig_img = batch['orig_img']
+    orig_img = batch['app_img']
     pose_img = batch['pose_img']
     localised_joints = batch['localised_joints']
 
@@ -79,7 +103,7 @@ def _training_step(batch, model, optimizer):
 
     optimizer.zero_grad()
     if hp.use_fp16:
-        with amp_handle.scale_loss(loss, optimizer) as scaled_loss:
+        with amp.scale_loss(loss, optimizer) as scaled_loss:
             scaled_loss.backward()
     else:
         loss.backward()
@@ -107,9 +131,10 @@ def _get_VGG_loss(VGG, orig_img, gen_img):
 
 
 def log_results(epoch, step_num, writer, gen_img, loss, l1_loss, KL_Divergence):
-    im_to_log = (gen_img * 0.5) + 0.5  # Undo effects of normalisation
-    im_file_name = 'generated_images/{}'.format(epoch)
-    writer.add_image(im_file_name, im_to_log, step_num)
+    #im_to_log = (gen_img * 0.5) + 0.5  # Undo effects of normalisation
+    img_to_log = gen_img
+    img_file_name = 'generated_images/{}'.format(epoch)
+    writer.add_image(img_file_name, img_to_log, step_num)
 
     writer.add_scalar('Train/loss', loss, step_num)
     writer.add_scalar('Train/l1_loss', l1_loss, step_num)
@@ -119,7 +144,7 @@ def log_results(epoch, step_num, writer, gen_img, loss, l1_loss, KL_Divergence):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--exp_name', required=True)
-    parser.add_argument('--root_log_dir', default='/home/sam/experiments/Fashion_Killer')
+    parser.add_argument('--root_log_dir', default='/home/sam/experiments/V_U_Net')
     args = parser.parse_args()
 
     exp_path = join(args.root_log_dir, args.exp_name)

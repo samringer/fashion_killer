@@ -15,7 +15,7 @@ class Dataset_Unittester(unittest.TestCase):
     """
 
     def setUp(self):
-        self.datadir = join(UNITTESTS_DIRECTORY, 'data/pose_detector_data')
+        self.datadir = join(UNITTESTS_DIRECTORY, 'data/pose_detector')
         self.dataset = Pose_Detector_Dataset(self.datadir)
 
     def test_valid_imgs(self):
@@ -132,7 +132,7 @@ class Image_Processing_Unittests(unittest.TestCase):
     and image json data.
     """
     def setUp(self):
-        self.datadir = join(UNITTESTS_DIRECTORY, 'data/pose_detector_data')
+        self.datadir = join(UNITTESTS_DIRECTORY, 'data/pose_detector')
 
         json_path = join(self.datadir, 'test.json')
         with open(json_path, 'r') as in_f:

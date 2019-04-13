@@ -1,16 +1,11 @@
 # Training params
-over_train = False
+overtrain = False
 use_cuda = True
 use_fp16 = True
 KL_weight = 8e-6
-bs = 8
+bs = 4
 num_epochs = 30
-learning_rate = 0.0001
-beta_1 = 0.0
-beta_2 = 0.9
-
-# Inference
-use_cuda_inference = True
+learning_rate = 1e-4
 
 # Logging
 ts_log_interval = 30
@@ -22,6 +17,11 @@ feature_weights = [1, 1, 1, 1, 1, 1]
 # General
 image_edge_size = 256
 joint_crop_box_edge_size = 64
+
+# Checkpoints
+checkpoint_load_path = "/home/sam/experiments/V_U_Net/BIG_no_normalisation_correct_log/models/10000.chk"
+
+checkpoint_interval = 5000
 
 # Which joints we want to localise and feed into appearance encoder
 from pose_drawer.pose_settings import JointType

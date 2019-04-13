@@ -1,7 +1,7 @@
 from torch.utils import model_zoo
 from torchvision.models.vgg import VGG, make_layers, cfg, model_urls
 
-class Custom_VGG19(VGG):
+class CustomVGG19(VGG):
     """
     A VGG model that has been altered to
     allow for returning actiations in intermediate
@@ -26,7 +26,7 @@ def get_custom_VGG19(pretrained=True, **kwargs):
     """
     if pretrained:
         kwargs['init_weights'] = False
-    model = Custom_VGG19(make_layers(cfg['E']), **kwargs)
+    model = CustomVGG19(make_layers(cfg['E']), **kwargs)
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['vgg19']))
     return model

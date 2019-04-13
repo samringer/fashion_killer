@@ -1,21 +1,21 @@
 import torch
 from torch import nn
-from Fashion_Killer.Model.Modules import Encoder_Block, Enc_Res_Layer
+from v_u_net.model.Modules import EncoderBlock, EncResLayer
 
-class Appearance_Encoder(nn.Module):
+class AppearanceEncoder(nn.Module):
 
     def __init__(self):
         super().__init__()
         self.conv_1x1 = nn.Conv2d(3*(1+1+7), 64, 1)
-        self.block_1 = Encoder_Block(64, 128)
-        self.block_2 = Encoder_Block(128, 256)
-        self.block_3 = Encoder_Block(256, 256)
-        self.block_4 = Encoder_Block(256, 256)
-        self.block_5 = Encoder_Block(256, 256)
-        self.block_6 = Encoder_Block(256, 256)
-        self.block_7 = Encoder_Block(256, 256)
-        self.block_8 = Encoder_Block(256, 256)
-        self.enc_final_res = Enc_Res_Layer(256)
+        self.block_1 = EncoderBlock(64, 128)
+        self.block_2 = EncoderBlock(128, 256)
+        self.block_3 = EncoderBlock(256, 256)
+        self.block_4 = EncoderBlock(256, 256)
+        self.block_5 = EncoderBlock(256, 256)
+        self.block_6 = EncoderBlock(256, 256)
+        self.block_7 = EncoderBlock(256, 256)
+        self.block_8 = EncoderBlock(256, 256)
+        self.enc_final_res = EncResLayer(256)
 
     def forward(self, orig_img, pose_img, localised_joints):
         x = torch.cat((orig_img, pose_img, localised_joints), dim=1)

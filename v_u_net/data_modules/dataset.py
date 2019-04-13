@@ -5,14 +5,14 @@ import pickle
 from PIL import Image
 import torch
 from torchvision import transforms
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 
 import v_u_net.hyperparams as hp
 from pose_drawer.pose_drawer import Pose_Drawer
 from v_u_net.localise_joint_appearances import get_localised_joints
 
 
-class V_U_Net_Dataset(Dataset):
+class VUNetDataset(Dataset):
     """
     Dataset consists of pairs of original and pose extracted images
     """
@@ -32,8 +32,8 @@ class V_U_Net_Dataset(Dataset):
 
         self.trans = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ])
+        #transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 
         self.joints_to_localise = [joint.value for joint in hp.joints_to_localise]
         self.pose_drawer = Pose_Drawer()

@@ -8,20 +8,22 @@ from v_u_net.data_modules.dataset import VUNetDataset
 from v_u_net.model.V_U_Net import VUNet
 from v_u_net.train import _training_step
 
-UNITTESTS_DIRECTORY = dirname(realpath(__file__))
+FUNCTESTS_DIRECTORY = dirname(realpath(__file__))
 
 
 class TestVUNetTrain(unittest.TestCase):
     """
     Test the ability of the VUNet train code to run a complete forward
-    pass.
+    and backward pass.
     """
 
     def test_train(self):
-        datadir = join(UNITTESTS_DIRECTORY, 'data/v_u_net_data')
+        datadir = join(FUNCTESTS_DIRECTORY, 'data/v_u_net_data')
         dataset = VUNetDataset(datadir)
         dataloader = DataLoader(dataset, batch_size=1)
         model = VUNet()
+        # TODO: 
+        model = model.cuda()
         optimizer = optim.Adam(model.parameters(), lr=0.001)
 
         batch = next(iter(dataloader))

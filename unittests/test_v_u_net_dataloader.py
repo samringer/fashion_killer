@@ -1,21 +1,19 @@
 import unittest
 from os.path import join, dirname, realpath
 
-from torch.utils.data import DataLoader
-
-from v_u_net.data_modules.dataloader import V_U_Net_DataLoader
-
+from v_u_net.data_modules.dataloader import VUNetDataLoader
 
 UNITTESTS_DIRECTORY = dirname(realpath(__file__))
 
 
-class DataLoader_Unittests(unittest.TestCase):
+class DataLoaderUnittests(unittest.TestCase):
 
     def setUp(self):
-        self.datadir = join(UNITTESTS_DIRECTORY, 'data/v_u_net_data')
+        self.datadir = join(UNITTESTS_DIRECTORY, 'data/v_u_net')
         self.batch_size = 1
-        self.dataLoader = V_U_Net_DataLoader(self.batch_size,
-                                             root_data_path=self.datadir)
+        self.dataLoader = VUNetDataLoader(self.batch_size,
+                                          root_data_path=self.datadir,
+                                          num_workers=0)
 
 
     def test_get_batch(self):

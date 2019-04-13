@@ -5,20 +5,20 @@ import numpy as np
 import torch, cv2
 from PIL import Image
 
-from v_u_net.data_modules.dataset import V_U_Net_Dataset
+from v_u_net.data_modules.dataset import VUNetDataset, _rearrange_keypoints
 
 
 UNITTESTS_DIRECTORY = dirname(realpath(__file__))
 
 
-class V_U_Net_Dataset_Tester(unittest.TestCase):
+class VUNetDatasetTester(unittest.TestCase):
     """
-    Unittest the dataset used for the vunet.
+    Unittest the dataset used for the VUNet.
     """
 
     def setUp(self):
-        self.datadir = join(UNITTESTS_DIRECTORY, 'data/v_u_net_data')
-        self.dataset = V_U_Net_Dataset(self.datadir)
+        self.datadir = join(UNITTESTS_DIRECTORY, 'data/v_u_net')
+        self.dataset = VUNetDataset(self.datadir)
 
     def test_dataset_length(self):
         self.assertEqual(len(self.dataset), 1)
@@ -36,18 +36,19 @@ class V_U_Net_Dataset_Tester(unittest.TestCase):
         self.assertEqual(localised_joints_shape, [21, 256, 256])
 
 
-class Image_Processing_Tester(unittest.TestCase):
+class ImageProcessingTester(unittest.TestCase):
     """
     Tests general image processing of input data.
     """
     def setUp(self):
-        self.datadir = join(UNITTESTS_DIRECTORY, 'data/v_u_net_data')
-        self.dataset = V_U_Net_Dataset(self.datadir)
+        self.datadir = join(UNITTESTS_DIRECTORY, 'data/v_u_net')
+        self.dataset = VUNetDataset(self.datadir)
 
     def test_generate_pose_img(self):
         from pose_drawer.pose_drawer import Pose_Drawer
 
         joint_raw_pos = self.dataset.data['joints'][0]
+        joint_raw_pos = _rearrange_keypoints(joint_raw_pos)
         joint_pixel_pos = (joint_raw_pos*256).astype('int')
         pose_img = Pose_Drawer().draw_pose_from_keypoints(joint_pixel_pos)
 
@@ -72,6 +73,7 @@ class Image_Processing_Tester(unittest.TestCase):
 
         joints_to_localise = self.dataset.joints_to_localise
         joint_raw_pos = self.dataset.data['joints'][0]
+        joint_raw_pos = _rearrange_keypoints(joint_raw_pos)
         joint_pixel_pos = (joint_raw_pos*256).astype('int')
 
         localised_joints = get_localised_joints(img,

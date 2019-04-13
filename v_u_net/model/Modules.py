@@ -1,9 +1,9 @@
 import torch
 from torch import nn
-import Fashion_Killer.hyperparams as hp
+import v_u_net.hyperparams as hp
 
 
-class Encoder_Block(nn.Module):
+class EncoderBlock(nn.Module):
     """
     We need to return both x_1 and x_2 as the Unet uses
     both for it's long skip connections
@@ -12,7 +12,7 @@ class Encoder_Block(nn.Module):
 
     def __init__(self, in_c, out_c):
         super().__init__()
-        self.res_block = Enc_Res_Layer(in_c)
+        self.res_block = EncResLayer(in_c)
         self.conv = nn.Conv2d(in_c, out_c, 3, stride=2, padding=1) # Performs downsampling
 
     def forward(self, x):
@@ -21,10 +21,10 @@ class Encoder_Block(nn.Module):
         return x_1, x_2
 
 
-class Decoder_Block(nn.Module):
+class DecoderBlock(nn.Module):
     def __init__(self, in_c, out_c):
         super().__init__()
-        self.res_layer = Dec_Res_Layer(in_c*2)
+        self.res_layer = DecResLayer(in_c*2)
         self.conv = nn.Conv2d(in_c*2, out_c, 3, padding=1)
 
     def forward(self, x, skip_con_1, skip_con_2):
@@ -36,7 +36,7 @@ class Decoder_Block(nn.Module):
         return x
 
 
-class Enc_Res_Layer(nn.Module):
+class EncResLayer(nn.Module):
     def __init__(self, in_c):
         super().__init__()
         self.l_relu = nn.LeakyReLU(negative_slope=hp.leakiness)
@@ -52,7 +52,7 @@ class Enc_Res_Layer(nn.Module):
         return res + x
 
 
-class Dec_Res_Layer(nn.Module):
+class DecResLayer(nn.Module):
     def __init__(self, in_c):
         super().__init__()
         self.proj = nn.Conv2d(in_c, in_c//2, 1)

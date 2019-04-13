@@ -4,37 +4,41 @@ from os.path import join, dirname, realpath
 from torch import optim
 from torch.utils.data import DataLoader
 
-from v_u_net.data_modules.dataset import VUNetDataset
-from v_u_net.model.V_U_Net import VUNet
-from v_u_net.train import _training_step
+from pose_detector.data_modules.dataset import Pose_Detector_Dataset
+from pose_detector.model.model import Model
+from pose_detector.train import _training_step
 
-UNITTESTS_DIRECTORY = dirname(realpath(__file__))
+FUNCTESTS_DIRECTORY = dirname(realpath(__file__))
 
 
-class TestVUNetTrain(unittest.TestCase):
+class TestPoseDetectorTrain(unittest.TestCase):
     """
-    Test the ability of the VUNet train code to run a complete forward
-    pass.
+    Test the ability of the Pose Detector train code to run a complete
+    forward and backward pass.
     """
 
     def test_train(self):
-        datadir = join(UNITTESTS_DIRECTORY, 'data/v_u_net_data')
-        dataset = VUNetDataset(datadir)
+        datadir = join(FUNCTESTS_DIRECTORY, 'data/pose_detector')
+        dataset = Pose_Detector_Dataset(datadir)
         dataloader = DataLoader(dataset, batch_size=1)
-        model = VUNet()
+        model = Model()
+        # TODO: 
+        model = model.cuda()
         optimizer = optim.Adam(model.parameters(), lr=0.001)
 
         batch = next(iter(dataloader))
         output = _training_step(batch, model, optimizer)
-        gen_img, total_loss, l1_loss, kl_divergence = output
+        pred_pafs, pred_heat_maps, loss = output
 
         # TODO: 
-        # Check the correct dimensionality of the generated img
+        # Check the correct dimensionality of the pafs img
 
-        # Check the losses are all positive and a single number
-        for loss in [total_loss, l1_loss, kl_divergence]:
-            self.assertTrue(loss.item() > 0)
-            self.assertEqual(loss.shape, [1])
+        # TODO: 
+        # Check the correct dimensionality of the heat map img
+
+        # Check loss positive and a single number
+        self.assertTrue(loss.item() > 0)
+        self.assertEqual(loss.shape, [1])
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 // peer connection
 var pc_original = null;
-var pc_pose = null;
-pcs = [pc_original, pc_pose];
+var pc_app_transfer = null;
+pcs = [pc_original, pc_app_transfer];
 
 
 function createPeerConnection(transform) {
@@ -75,7 +75,7 @@ function negotiate(pc, transform) {
 function start() {
     document.getElementById('start').style.display = 'none';
     pc_original = createPeerConnection('original');
-    pc_pose = createPeerConnection('pose');
+    pc_app_transfer = createPeerConnection('app_transfer');
 
     var time_start = null;
 
@@ -110,24 +110,20 @@ function start() {
         navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
             stream.getTracks().forEach(function(track) {
                 pc_original.addTrack(track, stream);
-                pc_pose.addTrack(track, stream);
+                pc_app_transfer.addTrack(track, stream);
             });
             negotiate(pc_original, 'original');
-            return negotiate(pc_pose, 'pose');
+            return negotiate(pc_app_transfer, 'app_transfer');
         }, function(err) {
             alert('Could not acquire media: ' + err);
         });
     } else {
         negotiate(pc_original, 'original');
-        negotiate(pc_pose, 'pose');
+        negotiate(pc_app_transfer, 'app_transfer');
     }
 
     document.getElementById('stop').style.display = 'inline-block';
 }
-
-//document.addEventListener('DOMContentLoaded', function(){
-//                                            start()
-//                                            }, false);
 
 
 function stop() {

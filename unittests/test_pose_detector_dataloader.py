@@ -9,10 +9,10 @@ from pose_detector.data_modules.dataloader import Pose_Detector_DataLoader
 UNITTESTS_DIRECTORY = dirname(realpath(__file__))
 
 
-class DataLoader_Unittests(unittest.TestCase):
+class DataLoaderUnittests(unittest.TestCase):
 
     def setUp(self):
-        self.datadir = join(UNITTESTS_DIRECTORY, 'data/pose_detector_data')
+        self.datadir = join(UNITTESTS_DIRECTORY, 'data/pose_detector')
         self.batch_size = 1
         self.dataLoader = Pose_Detector_DataLoader(self.batch_size,
                                                    self.datadir,

@@ -1,40 +1,40 @@
 import torch
 from torch import nn
-from Fashion_Killer.Model.Modules import Encoder_Block, Decoder_Block, Enc_Res_Layer, Dec_Res_Layer
+from v_u_net.model.Modules import EncoderBlock, DecoderBlock, EncResLayer, DecResLayer
 
 
-class U_Net(nn.Module):
+class UNet(nn.Module):
 
     def __init__(self):
         super().__init__()
         self.conv_1x1 = nn.Conv2d(3, 64, 1)
 
-        self.enc_block_1 = Encoder_Block(64, 128)
-        self.enc_block_2 = Encoder_Block(128, 256)
-        self.enc_block_3 = Encoder_Block(256, 256)
-        self.enc_block_4 = Encoder_Block(256, 256)
-        self.enc_block_5 = Encoder_Block(256, 256)
-        self.enc_block_6 = Encoder_Block(256, 256)
-        self.enc_block_7 = Encoder_Block(256, 256)
-        self.enc_block_8 = Encoder_Block(256, 256)
+        self.enc_block_1 = EncoderBlock(64, 128)
+        self.enc_block_2 = EncoderBlock(128, 256)
+        self.enc_block_3 = EncoderBlock(256, 256)
+        self.enc_block_4 = EncoderBlock(256, 256)
+        self.enc_block_5 = EncoderBlock(256, 256)
+        self.enc_block_6 = EncoderBlock(256, 256)
+        self.enc_block_7 = EncoderBlock(256, 256)
+        self.enc_block_8 = EncoderBlock(256, 256)
 
-        self.enc_final_res_1 = Enc_Res_Layer(256)
+        self.enc_final_res_1 = EncResLayer(256)
         self.enc_final_conv = nn.Conv2d(256, 256, 1)
-        self.enc_final_res_2 = Enc_Res_Layer(256)
+        self.enc_final_res_2 = EncResLayer(256)
 
-        self.dec_initial_res_1 = Dec_Res_Layer(256*2)
-        self.dec_initial_res_2 = Dec_Res_Layer(256*2)
+        self.dec_initial_res_1 = DecResLayer(256*2)
+        self.dec_initial_res_2 = DecResLayer(256*2)
         self.dec_custom_conv = nn.Conv2d(512, 256, 3, padding=1)
-        self.dec_initial_res_3 = Dec_Res_Layer(256*2)
+        self.dec_initial_res_3 = DecResLayer(256*2)
 
-        self.dec_block_1 = Decoder_Block(256, 256)
-        self.dec_block_2 = Decoder_Block(256, 256)
-        self.dec_block_3 = Decoder_Block(256, 256)
-        self.dec_block_4 = Decoder_Block(256, 256)
-        self.dec_block_5 = Decoder_Block(256, 256)
-        self.dec_block_6 = Decoder_Block(256, 128)
-        self.dec_block_7 = Decoder_Block(128, 64)
-        self.dec_final_res = Dec_Res_Layer(64*2)
+        self.dec_block_1 = DecoderBlock(256, 256)
+        self.dec_block_2 = DecoderBlock(256, 256)
+        self.dec_block_3 = DecoderBlock(256, 256)
+        self.dec_block_4 = DecoderBlock(256, 256)
+        self.dec_block_5 = DecoderBlock(256, 256)
+        self.dec_block_6 = DecoderBlock(256, 128)
+        self.dec_block_7 = DecoderBlock(128, 64)
+        self.dec_final_res = DecResLayer(64*2)
         self.dec_final_conv = nn.Conv2d(64*2, 3, 1)
 
     def forward(self, pose_img, app_vec_1x1, app_vec_2x2):
