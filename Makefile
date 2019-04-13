@@ -1,4 +1,6 @@
-.PHONY: unittest
+.PHONY: test unittest functest
+
+test: unittest functest
 
 unittest:
 	pytest -v -s unittests

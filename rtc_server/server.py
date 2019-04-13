@@ -6,6 +6,7 @@ import os
 import ssl
 import uuid
 from threading import Thread
+from copy import deepcopy
 from concurrent.futures import ThreadPoolExecutor
 
 import cv2
@@ -23,55 +24,37 @@ logger = logging.getLogger('pc')
 pcs = set()
 
 
-class VideoTransformTrack(VideoStreamTrack):
-    def __init__(self, track, transform=None):
-        super().__init__()  # don't forget this!
-        self.track = track
-
+# TODO: Not sure about the pattern for this but will run with it for now
+# TODO: By pattern I mean starting the threads on import time
+class ImageTransformer:
+    """
+    Runs all the transformations in threads that VideoTransformTrack
+    can then pull required data from.
+    Makes things more efficient as GPU doesn't have to recalculate
+    anything.
+    """
+    def __init__(self):
         # Placeholders
-        self._in_img = None
-        self._pose_img = None
-        self._app_img = None
-        self._out_img = None
+        self.in_img = None
+        self.preprocessed_img = None
+        self.pose_img = None
+        self.app_img = None
 
-        self.monkey = Monkey(transform)
+        self.monkey = Monkey()
 
-        # Continuously update imgs in other threads
-        if transform == 'app_transfer':
-            worker_1 = Thread(target=self._pose_detection)
-            worker_1.setDaemon(True)
-            worker_1.start()
-            worker_2 = Thread(target=self._appearance_transer)
-            worker_2.setDaemon(True)
-            worker_2.start()
-            self._out_img = self._app_img
-        elif transform == 'pose':
-            worker = Thread(target=self._pose_detection)
+    def start_threads(self):
+        """
+        Run the transformations in seperate threds to increase
+        efficiency.
+        """
+        preprocess_worker = Thread(target=self._std_transform)
+        pose_worker = Thread(target=self._pose_detection)
+        app_worker = Thread(target=self._appearance_transer)
+
+        workers = [preprocess_worker, pose_worker, app_worker]
+        for worker in workers:
             worker.setDaemon(True)
             worker.start()
-            self._out_img = self._pose_img
-        else:
-            worker = Thread(target=self._std_transform)
-            worker.setDaemon(True)
-            worker.start()
-
-    async def recv(self):
-        frame = await self.track.recv()
-
-        self._in_img = frame.to_ndarray(format='rgb24')
-
-        # Handle initial condition on startup.
-        if self._out_img is None:
-            return frame
-
-        out_img = self._out_img.astype('uint8')
-
-        # rebuild a VideoFrame, preserving timing information
-        # Note that this expects array to be of datatype uint8
-        new_frame = VideoFrame.from_ndarray(out_img, format='rgb24')
-        new_frame.pts = frame.pts
-        new_frame.time_base = frame.time_base
-        return new_frame
 
     def _std_transform(self):
         """
@@ -79,7 +62,7 @@ class VideoTransformTrack(VideoStreamTrack):
         It only performs the monkey preprocessing on the image.
         """
         while True:
-            self._out_img = self.monkey.preprocess_img(self._in_img)
+            self.preprocessed_img = self.monkey.preprocess_img(self.in_img)
 
     def _pose_detection(self):
         """
@@ -87,14 +70,54 @@ class VideoTransformTrack(VideoStreamTrack):
         Used for both pose extraction and appearance transfer.
         """
         while True:
-            self._pose_img = self.monkey.draw_pose_from_img(self._in_img)
+            self.pose_img = self.monkey.draw_pose_from_img(self.in_img)
 
     def _appearance_transer(self):
         """
         Uses the pose image to perform appearance transfer.
         """
         while True:
-            self._out_img = self.monkey.transfer_appearance(self._pose_img)
+            self.app_img = self.monkey.transfer_appearance(self.pose_img)
+
+
+# TODO: Not sure about this pattern
+# TODO: Also these will just be running willy nilly at the start
+IMAGE_TRANSFORMER = ImageTransformer()
+IMAGE_TRANSFORMER.start_threads()
+
+
+class VideoTransformTrack(VideoStreamTrack):
+    def __init__(self, track, transform=None):
+        super().__init__()  # don't forget this!
+        self.track = track
+        self.transform = transform
+
+    async def recv(self):
+        frame = await self.track.recv()
+
+        # Only have one track (the standard one) setting the input image
+        if self.transform not in ['appearance', 'pose']:
+            IMAGE_TRANSFORMER.in_img = frame.to_ndarray(format='rgb24')
+
+        # Handle initial condition on startup.
+        if IMAGE_TRANSFORMER.preprocessed_img is None or \
+           IMAGE_TRANSFORMER.pose_img is None or \
+           IMAGE_TRANSFORMER.app_img is None:
+            return frame
+
+        if self.transform == 'appearance':
+            out_img = IMAGE_TRANSFORMER.app_img.astype('uint8')
+        elif self.transform == 'pose':
+            out_img = IMAGE_TRANSFORMER.pose_img.astype('uint8')
+        else:
+            out_img = IMAGE_TRANSFORMER.preprocessed_img.astype('uint8')
+
+        # rebuild a VideoFrame, preserving timing information
+        # Note that this expects array to be of datatype uint8
+        new_frame = VideoFrame.from_ndarray(out_img, format='rgb24')
+        new_frame.pts = frame.pts
+        new_frame.time_base = frame.time_base
+        return new_frame
 
 
 async def index(request):
@@ -130,12 +153,9 @@ async def offer(request):
         log_info('Track %s received', track.kind)
 
         if track.kind == 'video':
-            if params['transform'] == 'original':
-                original_video = VideoTransformTrack(track)
-                pc.addTrack(original_video)
-            elif params['transform'] == 'app_transfer':
-                app_transfer_video = VideoTransformTrack(track, transform='app_transfer')
-                pc.addTrack(app_transfer_video)
+            transform = params['transform']
+            output = VideoTransformTrack(track, transform=transform)
+            pc.addTrack(output)
 
         @track.on('ended')
         async def on_ended():
@@ -190,5 +210,5 @@ if __name__ == '__main__':
     app.router.add_get('/', index)
     app.router.add_get('/client.js', javascript)
     app.router.add_post('/offer_original', offer)
-    app.router.add_post('/offer_app_transfer', offer)
+    app.router.add_post('/offer_appearance', offer)
     web.run_app(app, access_log=None, port=args.port, ssl_context=ssl_context)

@@ -10,10 +10,10 @@ from apex import amp
 from pose_detector.model.model import PoseDetector
 from pose_detector.data_modules.dataset import PoseDetectorDataset
 from pose_drawer.pose_drawer import Pose_Drawer
-from util import (save_checkpoint,
-                  load_checkpoint,
-                  prepare_experiment_dirs,
-                  get_tb_logger)
+from utils import (save_checkpoint,
+                   load_checkpoint,
+                   prepare_experiment_dirs,
+                   get_tb_logger)
 
 POSE_DRAWER = Pose_Drawer()
 

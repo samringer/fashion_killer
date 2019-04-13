@@ -4,7 +4,7 @@ from os.path import join, dirname, realpath
 
 import torch, cv2
 
-from pose_detector.data_modules.dataset import Pose_Detector_Dataset
+from pose_detector.data_modules.dataset import PoseDetectorDataset
 
 UNITTESTS_DIRECTORY = dirname(realpath(__file__))
 
@@ -16,7 +16,7 @@ class Dataset_Unittester(unittest.TestCase):
 
     def setUp(self):
         self.datadir = join(UNITTESTS_DIRECTORY, 'data/pose_detector')
-        self.dataset = Pose_Detector_Dataset(self.datadir)
+        self.dataset = PoseDetectorDataset(self.datadir)
 
     def test_valid_imgs(self):
         """

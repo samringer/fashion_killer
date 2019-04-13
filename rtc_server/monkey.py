@@ -7,7 +7,7 @@ import torch
 from torch import nn
 from torchvision import transforms
 
-from pose_detector.model.model import Model as PDModel
+from pose_detector.model.model import PoseDetector
 from v_u_net.model.V_U_Net import CachedVUNet
 from pose_drawer.pose_drawer import Pose_Drawer
 import v_u_net.hyperparams as hp
@@ -19,38 +19,34 @@ class Monkey:
     Handles all the shapeshifting!
     https://jackiechanadventures.fandom.com/wiki/Monkey_Talisman
     """
-    def __init__(self, transform=None):
-        if transform == 'pose' or transform == 'app_transfer':
-            # TODO: hp.use_cuda is used later on
-            self.use_cuda = True
+    def __init__(self):
+        self.use_cuda = True
+        self.pose_drawer = Pose_Drawer()
 
-            self.pose_drawer = Pose_Drawer()
+        pose_model_base_path = 'pretrained_models/pose_detector.pt'
+        pose_model = PoseDetector()
+        pose_model.load_state_dict(torch.load(pose_model_base_path))
+        pose_model = pose_model.eval()
+        if self.use_cuda:
+            pose_model = pose_model.cuda()
+        self.pose_model = pose_model
 
-            pose_model_base_path = 'pretrained_models/pose_detector.pt'
-            pose_model = PDModel()
-            pose_model.load_state_dict(torch.load(pose_model_base_path))
-            pose_model = pose_model.eval()
-            if self.use_cuda:
-                pose_model = pose_model.cuda()
-            self.pose_model = pose_model
-
-        if transform == 'app_transfer':
-            app_model_base_path = 'pretrained_models/v_u_net.pt'
-            base_img = 'test_imgs/test_appearance_img.jpg'
-            app_model = CachedVUNet()
-            app_model.load_state_dict(torch.load(app_model_base_path))
-            app_model = app_model.eval()
-            if self.use_cuda:
-                app_model = app_model.cuda()
-            self.app_model = app_model
-            # TODO: This is temporary and should be neatened up
-            # Also think about getting the pose/keypoints directly from the input img
-            app_img_path = 'test_imgs/test_appearance_img.jpg'
-            joint_pos_path = 'test_imgs/test_appearance_joint_pos.pkl'
-            app_img = Image.open(app_img_path)
-            with open(joint_pos_path, 'rb') as in_f:
-                app_joint_pos = pickle.load(in_f)
-            self._generate_appearance_cache(app_img, app_joint_pos)
+        app_model_base_path = 'pretrained_models/v_u_net.pt'
+        base_img = 'test_imgs/test_appearance_img.jpg'
+        app_model = CachedVUNet()
+        app_model.load_state_dict(torch.load(app_model_base_path))
+        app_model = app_model.eval()
+        if self.use_cuda:
+            app_model = app_model.cuda()
+        self.app_model = app_model
+        # TODO: This is temporary and should be neatened up
+        # Also think about getting the pose/keypoints directly from the input img
+        app_img_path = 'test_imgs/test_appearance_img.jpg'
+        joint_pos_path = 'test_imgs/test_appearance_joint_pos.pkl'
+        app_img = Image.open(app_img_path)
+        with open(joint_pos_path, 'rb') as in_f:
+            app_joint_pos = pickle.load(in_f)
+        self._generate_appearance_cache(app_img, app_joint_pos)
 
     @staticmethod
     def preprocess_img(img):
@@ -86,7 +82,7 @@ class Monkey:
         pose_img = transforms.ToTensor()(pose_img).float()
         pose_img = pose_img / 256
         pose_img = pose_img.unsqueeze(0)
-        if hp.use_cuda:
+        if self.use_cuda:
             pose_img = pose_img.cuda()
 
         with torch.no_grad():
@@ -165,7 +161,7 @@ class Monkey:
         app_img_pose = app_img_pose.unsqueeze(0)
         localised_joints = localised_joints.unsqueeze(0)
 
-        if hp.use_cuda:
+        if self.use_cuda:
             app_img = app_img.cuda()
             app_img_pose = app_img_pose.cuda()
             localised_joints = localised_joints.cuda()

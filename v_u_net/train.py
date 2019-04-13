@@ -12,10 +12,10 @@ from apex import amp
 
 from v_u_net.model.V_U_Net import VUNet
 from v_u_net.data_modules.dataset import VUNetDataset
-from util import (save_checkpoint,
-                  load_checkpoint,
-                  prepare_experiment_dirs,
-                  get_tb_logger)
+from utils import (save_checkpoint,
+                   load_checkpoint,
+                   prepare_experiment_dirs,
+                   get_tb_logger)
 
 FLAGS = flags.FLAGS
 flags.DEFINE_boolean('over_train', False, "Overtrain on one datapoint")
