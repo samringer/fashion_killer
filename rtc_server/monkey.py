@@ -32,7 +32,6 @@ class Monkey:
         self.pose_model = pose_model
 
         app_model_base_path = 'pretrained_models/v_u_net.pt'
-        base_img = 'test_imgs/test_appearance_img.jpg'
         app_model = CachedVUNet()
         app_model.load_state_dict(torch.load(app_model_base_path))
         app_model = app_model.eval()
