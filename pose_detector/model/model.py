@@ -3,7 +3,9 @@ from torch import nn
 
 from pose_detector.model.modules import LimbBlock, JointBlock
 from pose_detector.model.custom_VGG19 import get_custom_VGG19
-import pose_detector.hyperparams as hp
+
+num_joints = 18
+num_limbs = 17
 
 
 class PoseDetector(nn.Module):
@@ -13,11 +15,11 @@ class PoseDetector(nn.Module):
         self.VGG = get_custom_VGG19()
 
         self.limb_block_1 = LimbBlock(256)
-        self.limb_block_2 = LimbBlock(256+2*hp.num_limbs)
-        self.limb_block_3 = LimbBlock(256+2*hp.num_limbs)
+        self.limb_block_2 = LimbBlock(256+2*num_limbs)
+        self.limb_block_3 = LimbBlock(256+2*num_limbs)
 
-        self.joint_block_1 = JointBlock(256+2*hp.num_limbs)
-        self.joint_block_2 = JointBlock(256+2*hp.num_limbs+hp.num_joints)
+        self.joint_block_1 = JointBlock(256+2*num_limbs)
+        self.joint_block_2 = JointBlock(256+2*num_limbs+num_joints)
 
     def forward(self, x):
         F = self.VGG(x)
