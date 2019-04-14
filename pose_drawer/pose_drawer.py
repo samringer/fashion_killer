@@ -17,7 +17,7 @@ class Pose_Drawer():
     def draw_pose_from_keypoints(self, joint_positions):
         """
         Args:
-            joint_positions (l of tuples): List of pixel positions of each joint.
+            joint_positions (l of tuples): Pixel positions of each joint.
             edge_size (int): Pixel edge size of canvas to draw image on.
         Returns:
             canvas (np array): np array of image with pose drawn on it.
@@ -32,23 +32,36 @@ class Pose_Drawer():
         pose_detector model outputs a heatmap for each joint prediction.
         This method draws a pose from these heatmaps.
         Args:
-            heat_maps (l of np arrays): List of joint confidence heat_maps.
-                                        Must be np arrays and not PyTorch tensors.
+            heat_maps (l of np arrays): Joint confidence heat_maps.
+                                        Must be np arrays, not PyTorch tensors.
         Returns:
             canvas (np array): np array of image with pose drawn on it.
         """
-        edge_size, _ = heat_maps[0].shape
-        keypoints = []
+        keypoints = self.extract_keypoints_from_heatmaps(heat_maps)
+        return self.draw_pose_from_keypoints(keypoints)
 
+    def extract_keypoints_from_heatmaps(self, heat_maps):
+        """
+        pose_detector model outputs a heatmap for each joint prediction.
+        This method extracts the keypoints from these heatmaps.
+        Args:
+            heat_maps (l of np arrays): Joint confidence heat_maps.
+                                        Must be np arrays, not PyTorch tensors.
+        Returns:
+            keypoints (l of tuples): The positions of the keypoints (if
+                                     they are found else [0, 0])
+        """
+        keypoints = []
+        threshold = self.pose_settings.keypoint_from_heatmap_threshold
         for heat_map in heat_maps:
             max_heat = np.amax(heat_map)
-            if max_heat >= self.pose_settings.keypoint_from_heatmap_threshold:
+            if max_heat >= threshold:
                 keypoint = np.array(np.unravel_index(heat_map.argmax(), heat_map.shape))
                 keypoint = np.array([keypoint[1], keypoint[0]])  # Unravelling flips dims
             else:
                 keypoint = np.array([0, 0])
             keypoints.append(keypoint)
-        return self.draw_pose_from_keypoints(keypoints)
+        return keypoints
 
     def _draw_limbs(self, canvas, joint_positions):
         desired_connections = self.pose_settings.desired_connections

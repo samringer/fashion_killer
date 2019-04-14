@@ -38,14 +38,11 @@ class Monkey:
         if self.use_cuda:
             app_model = app_model.cuda()
         self.app_model = app_model
+
         # TODO: This is temporary and should be neatened up
-        # Also think about getting the pose/keypoints directly from the input img
         app_img_path = 'test_imgs/test_appearance_img.jpg'
-        joint_pos_path = 'test_imgs/test_appearance_joint_pos.pkl'
         app_img = Image.open(app_img_path)
-        with open(joint_pos_path, 'rb') as in_f:
-            app_joint_pos = pickle.load(in_f)
-        self._generate_appearance_cache(app_img, app_joint_pos)
+        self._generate_appearance_cache(app_img)
 
     @staticmethod
     def preprocess_img(img):
@@ -124,12 +121,21 @@ class Monkey:
         pose_img *= 256
         return pose_img
 
-    def _generate_appearance_cache(self, app_img, app_joint_pos):
+    def _generate_appearance_cache(self, app_img):
         """
         We don't need to recalculate the encoded appearance every
         single forward pass so just do it once.
         """
-        app_encoder_inp = self._prep_app_encoder_inp(app_img, app_joint_pos)
+        app_img = self.preprocess_img(app_img)
+        # TODO: There is lots of replication in here thats in other methods
+        app_tensor = transforms.ToTensor()(app_img)
+        app_tensor = app_tensor.astype('double').view(1, 3, 256, 256)
+
+        with torch.no_grad():
+            _, heat_maps = self.pose_model(app_tensor)
+
+        joint_pos = self.pose_drawer.extract_keypoints_from_heatmaps(heat_maps)
+        app_encoder_inp = self._prep_app_encoder_inp(app_img, joint_pos)
         with torch.no_grad():
             cache = self.app_model.appearance_encoder(*app_encoder_inp)
         self.app_vec_1, self.app_vec_2, _, _ = cache
