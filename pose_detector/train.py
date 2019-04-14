@@ -1,4 +1,3 @@
-import pickle
 from os.path import join
 
 from absl import flags, app
@@ -8,12 +7,13 @@ from torch.utils.data import DataLoader
 from apex import amp
 
 from pose_detector.model.model import PoseDetector
-from pose_detector.data_modules.dataset import PoseDetectorDataset
+from pose_detector.dataset import PoseDetectorDataset
 from pose_drawer.pose_drawer import Pose_Drawer
 from utils import (save_checkpoint,
                    load_checkpoint,
                    prepare_experiment_dirs,
-                   get_tb_logger)
+                   get_tb_logger,
+                   set_seeds)
 
 POSE_DRAWER = Pose_Drawer()
 
@@ -26,11 +26,16 @@ flags.DEFINE_integer('min_joints_to_train_on', 10,
                      "The minimum num of joints an image should \
                       contain to be used as training data")
 
+FLAGS.task_path = '/home/sam/experiments/Pose_Detector'
+
 
 def train(unused_argv):
-    # TODO: Assert that the flags are set correctly before doing this
+    """
+    Trains a pose detector.
+    """
     models_path = prepare_experiment_dirs()
     logger = get_tb_logger()
+    set_seeds()
 
     model = PoseDetector()
     if FLAGS.use_cuda:
@@ -66,11 +71,11 @@ def train(unused_argv):
 
             if step_num % FLAGS.tb_log_interval == 0:
                 log_results(epoch, step_num, logger, pred_heat_maps, loss)
-            if step_num % FLAGS.checkpoint_interval == 0:
-                save_path = join(models_path, '{}.chk'.format(step_num))
-                save_checkpoint(model, optimizer, save_path)
-                print('Model & optimizer checkpointed at {}'.format(save_path))
-            print(step_num, f"{loss.item():.3f}")
+                if step_num % FLAGS.checkpoint_interval == 0:
+                    save_path = join(models_path, '{}.chk'.format(step_num))
+                    save_checkpoint(model, optimizer, save_path)
+                    print('Model & optimizer checkpointed at {}'.format(save_path))
+                    print(step_num, f"{loss.item():.3f}")
 
 
 def _train_step(batch, model, optimizer):
@@ -105,7 +110,7 @@ def _train_step(batch, model, optimizer):
             scaled_loss.backward()
     else:
         loss.backward()
-    optimizer.step()
+        optimizer.step()
 
     return pred_pafs, pred_heat_maps, loss
 
@@ -122,7 +127,7 @@ def get_heatmap_loss(pred_heat_maps, true_heat_maps, kp_loss_mask):
     for pred_heat_map in pred_heat_maps:
         pred_heat_map_masked = pred_heat_map * kp_loss_mask
         heatmap_loss += nn.MSELoss()(pred_heat_map_masked, true_heat_maps_masked)
-    return heatmap_loss
+        return heatmap_loss
 
 
 def get_part_affinity_field_loss(pred_pafs, true_pafs, paf_loss_mask):
@@ -138,7 +143,7 @@ def get_part_affinity_field_loss(pred_pafs, true_pafs, paf_loss_mask):
     for pred_paf in pred_pafs:
         pred_paf_masked = pred_paf * paf_loss_mask
         paf_loss += nn.MSELoss()(pred_paf_masked, true_pafs_masked)
-    return paf_loss
+        return paf_loss
 
 
 def log_results(epoch, step_num, writer, pred_heat_maps, loss):
@@ -154,9 +159,6 @@ def log_results(epoch, step_num, writer, pred_heat_maps, loss):
     img_file_name = 'generated_pose/{}'.format(epoch)
     writer.add_image(img_file_name, pose_img, step_num)
     writer.add_scalar('Train/loss', loss, step_num)
-    if step_num % 1000 == 0:
-        with open('/tmp/{}.heatmap'.format(step_num), 'wb') as out_f:
-            pickle.dump(pred_heat_maps, out_f)
 
 
 if __name__ == "__main__":

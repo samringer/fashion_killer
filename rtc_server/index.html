@@ -27,33 +27,25 @@
 	} 
 
 	#original-video { 
-		width: 47.5%; 
-		height: 500px; 
+		width: 30%; 
+		height: 400px; 
+		float: left; 
+		margin-right: 5%;
+	} 
+
+	#pose-video { 
+		width: 30%; 
+		height: 400px; 
 		float: left; 
 		margin-right: 5%;
 	} 
 
 	#appearance-video { 
-		width: 47.5%; 
-		height: 500px; 
+		width: 30%; 
+		height: 400px; 
 		float: left; 
 	}
 
-	@media (max-width:700px) {
-		#wrapper{
-			width: 100%;
-			height: auto;
-		}
-		#original-video {
-			width: 100%;
-			height: auto;
-			float: none;
-		}
-		#pose-video {
-			width: 100%; height: auto;
-			float: none;
-		}
-	}
 
     </style>
 </head>
@@ -78,6 +70,7 @@
 <div id="media" style="display: none">
     <h2>Media</h2>
     <video id="original-video" autoplay="true"></video>
+    <video id="pose-video" autoplay="true"></video>
     <video id="appearance-video" autoplay="true"></video>
 </div>
 

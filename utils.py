@@ -1,8 +1,11 @@
 import pickle
+import random
 from os import mkdir
 from os.path import join, exists
 
+import numpy as np
 from absl import flags
+import torch
 from tensorboardX import SummaryWriter
 
 FLAGS = flags.FLAGS
@@ -46,7 +49,12 @@ def prepare_experiment_dirs():
     Create the experiment directory if it does not already exists.
     Also create subdirectories to store saved models and logs.
     """
-    exp_root_path = join(FLAGS.task, FLAGS.exp_name)
+    if not FLAGS.task_path:
+        raise RuntimeError("all training runs must define task_path")
+    if not FLAGS.exp_name:
+        raise RuntimeError("all training runs must define exp_name")
+
+    exp_root_path = join(FLAGS.task_path, FLAGS.exp_name)
     if not exists(exp_root_path):
         mkdir(exp_root_path)
 
@@ -60,6 +68,7 @@ def prepare_experiment_dirs():
 
     return models_path
 
+
 def get_tb_logger():
     """
     Return the logger used for logging to tensorboard.
@@ -68,3 +77,9 @@ def get_tb_logger():
     logs_path = join(FLAGS.task, FLAGS.exp_name, 'logs')
     assert exists(logs_path)
     return SummaryWriter(logs_path)
+
+
+def set_seeds():
+    np.random.seed(42)
+    torch.manual_seed(42)
+    random.seed(42)

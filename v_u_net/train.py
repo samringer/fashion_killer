@@ -1,7 +1,4 @@
-import argparse
-import pickle
-from os import mkdir
-from os.path import join, exists
+from os.path import join
 
 from absl import flags, app
 import torch
@@ -11,11 +8,12 @@ from tensorboardX import SummaryWriter
 from apex import amp
 
 from v_u_net.model.V_U_Net import VUNet
-from v_u_net.data_modules.dataset import VUNetDataset
+from v_u_net.dataset import VUNetDataset
 from utils import (save_checkpoint,
                    load_checkpoint,
                    prepare_experiment_dirs,
-                   get_tb_logger)
+                   get_tb_logger,
+                   set_seeds)
 
 FLAGS = flags.FLAGS
 flags.DEFINE_boolean('over_train', False, "Overtrain on one datapoint")
@@ -23,11 +21,16 @@ flags.DEFINE_float('learning_rate', 1e-4, "Starting learning rate")
 flags.DEFINE_integer('batch_size', 4, "Batch size to use when training")
 flags.DEFINE_integer('num_epochs', 30, "Number of training epochs")
 
+FLAGS.task_path = '/home/sam/experiments/V_U_Net'
+
 
 def train(unused_argv):
-    # TODO: Assert that the flags are set correctly before doing this
+    """
+    Trains a variational u-net for appearance transfer.
+    """
     models_path = prepare_experiment_dirs()
     logger = get_tb_logger()
+    set_seeds()
 
     model = VUNet()
     if FLAGS.use_cuda:

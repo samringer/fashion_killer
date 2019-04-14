@@ -24,8 +24,7 @@ logger = logging.getLogger('pc')
 pcs = set()
 
 
-# TODO: Not sure about the pattern for this but will run with it for now
-# TODO: By pattern I mean starting the threads on import time
+
 class ImageTransformer:
     """
     Runs all the transformations in threads that VideoTransformTrack
@@ -80,8 +79,7 @@ class ImageTransformer:
             self.app_img = self.monkey.transfer_appearance(self.pose_img)
 
 
-# TODO: Not sure about this pattern
-# TODO: Also these will just be running willy nilly at the start
+# Start the threads going as soon as possible in the global scope
 IMAGE_TRANSFORMER = ImageTransformer()
 IMAGE_TRANSFORMER.start_threads()
 
@@ -210,5 +208,6 @@ if __name__ == '__main__':
     app.router.add_get('/', index)
     app.router.add_get('/client.js', javascript)
     app.router.add_post('/offer_original', offer)
+    app.router.add_post('/offer_pose', offer)
     app.router.add_post('/offer_appearance', offer)
     web.run_app(app, access_log=None, port=args.port, ssl_context=ssl_context)
