@@ -5,3 +5,10 @@ torchvision==0.2.1
 tensorboardX
 tensorflow
 absl-py
+scikit-image
+flake8
+pycodestyle
+pyflakes
+pylint
+pytest
+pytest-cov

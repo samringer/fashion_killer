@@ -38,7 +38,6 @@ def train(unused_argv):
     if FLAGS.use_cuda:
         model = model.cuda()
 
-    data_dir = '/home/sam/data/COCO'
     dataset = PoseDetectorDataset(root_data_dir=FLAGS.data_dir,
                                   overtrain=FLAGS.over_train,
                                   min_joints_to_train_on=FLAGS.min_joints_to_train_on)

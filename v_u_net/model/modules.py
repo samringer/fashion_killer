@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-import v_u_net.hyperparams as hp
 
 
 class EncoderBlock(nn.Module):

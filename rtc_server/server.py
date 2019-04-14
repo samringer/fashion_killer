@@ -6,15 +6,13 @@ import os
 import ssl
 import uuid
 from threading import Thread
-from copy import deepcopy
-from concurrent.futures import ThreadPoolExecutor
 
-import cv2
 from aiohttp import web
 from av import VideoFrame
 
-from aiortc import RTCPeerConnection, RTCSessionDescription, VideoStreamTrack
-from aiortc.contrib.media import MediaBlackhole, MediaPlayer, MediaRecorder
+from aiortc import (RTCPeerConnection, RTCSessionDescription,
+                    VideoStreamTrack)
+from aiortc.contrib.media import MediaBlackhole
 
 from rtc_server.monkey import Monkey
 
@@ -62,6 +60,9 @@ class ImageTransformer:
         """
         while True:
             self.preprocessed_img = self.monkey.preprocess_img(self.in_img)
+            # WebRTC wants in range 0-256
+            if self.preprocessed_img is not None:
+                self.preprocessed_img *= 256
 
     def _pose_detection(self):
         """
@@ -69,14 +70,28 @@ class ImageTransformer:
         Used for both pose extraction and appearance transfer.
         """
         while True:
-            self.pose_img = self.monkey.draw_pose_from_img(self.in_img)
+            input_pose = None
+            if self.in_img is not None:
+                input_pose = self.in_img / 256
+            self.pose_img = self.monkey.draw_pose_from_img(input_pose)
+
+            # WebRTC wants in range 0-256
+            if self.pose_img is not None:
+                self.pose_img *= 256
 
     def _appearance_transer(self):
         """
         Uses the pose image to perform appearance transfer.
         """
         while True:
-            self.app_img = self.monkey.transfer_appearance(self.pose_img)
+            input_pose = None
+            if self.pose_img is not None:
+                input_pose = self.pose_img / 256
+            self.app_img = self.monkey.transfer_appearance(input_pose)
+
+            # WebRTC wants in range 0-256
+            if self.app_img is not None:
+                self.app_img *= 256
 
 
 # Start the threads going as soon as possible in the global scope
@@ -144,6 +159,7 @@ async def offer(request):
     log_info('Created for %s', request.remote)
 
     # prepare local media
+    # TODO: Check if 'recorder' can be removed
     recorder = MediaBlackhole()
 
     @pc.on('track')

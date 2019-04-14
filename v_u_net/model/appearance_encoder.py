@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from v_u_net.model.Modules import EncoderBlock, EncResLayer
+from v_u_net.model.modules import EncoderBlock, EncResLayer
 
 class AppearanceEncoder(nn.Module):
 

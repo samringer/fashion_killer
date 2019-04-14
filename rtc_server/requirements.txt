@@ -13,3 +13,4 @@ opencv-python
 aiohttp
 av
 aiortc
+scikit-image

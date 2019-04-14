@@ -1,8 +1,10 @@
-import unittest, pickle, json
+import unittest
+import pickle
+import json
 import numpy as np
 from os.path import join, dirname, realpath
 
-import torch, cv2
+import cv2
 
 from pose_detector.dataset import PoseDetectorDataset
 
@@ -91,7 +93,8 @@ class Dataset_Unittester(unittest.TestCase):
     def test_adjust_keypoints(self):
         """
         Keypoints need to have there position adjusted to account
-        for transformations to the input image.
+        for transformations to the input image. Test this can be
+        done correctly with an arbitary transform.
         """
         from pose_detector.dataset import (_adjust_keypoints,
                                            _extract_keypoints_from_img_data)
@@ -99,12 +102,9 @@ class Dataset_Unittester(unittest.TestCase):
         original_keypoints = _extract_keypoints_from_img_data(img_data)
 
         ul_point, x_offset, y_offset, scale_factor = (10, 10), 50, 0, 0.5
-        adj_keypoints = _adjust_keypoints(original_keypoints,
-                                               ul_point,
-                                               x_offset,
-                                               y_offset,
-                                               scale_factor)
-        non_null_adj_keypoints = [point for point in adj_keypoints if point!=(0, 0)]
+        adj_keypoints = _adjust_keypoints(original_keypoints, ul_point,
+                                          x_offset, y_offset, scale_factor)
+        non_null_adj_keypoints = [point for point in adj_keypoints if point != (0, 0)]
 
         ground_truth_path = join(self.datadir, 'adjusted_keypoints.pkl')
         with open(ground_truth_path, 'rb') as in_f:
@@ -115,7 +115,7 @@ class Dataset_Unittester(unittest.TestCase):
     def test_get_kp_loss_mask(self):
         """
         Joints that are not found should have their losses
-        masked during training.
+        masked during training. Test the loss mask is produced correctly.
         """
         from pose_detector.dataset import (_get_kp_loss_mask,
                                           _extract_keypoints_from_img_data)
@@ -164,7 +164,8 @@ class Image_Processing_Unittests(unittest.TestCase):
         test_img_data = self.imgs_data[0]
         keypoints = _extract_keypoints_from_img_data(test_img_data)
 
-        num_non_null_keypoints = sum([point!=(0, 0) for point in keypoints])
+        num_non_null_keypoints = sum([point != (0, 0)
+                                      for point in keypoints])
 
         # Account for the aritificially added neck joint.
         orig_num_keypoints = test_img_data['num_keypoints']

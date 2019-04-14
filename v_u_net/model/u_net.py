@@ -1,6 +1,7 @@
 import torch
 from torch import nn
-from v_u_net.model.Modules import EncoderBlock, DecoderBlock, EncResLayer, DecResLayer
+from v_u_net.model.modules import (EncoderBlock, DecoderBlock,
+                                   EncResLayer, DecResLayer)
 
 
 class UNet(nn.Module):

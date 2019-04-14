@@ -1,4 +1,3 @@
-import re
 import json
 import urllib
 from urllib.request import urlopen, Request

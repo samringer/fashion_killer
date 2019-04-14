@@ -1,5 +1,6 @@
 import urllib.request
 
+
 def download_img(img_url, output_path):
     urllib.request.urlretrieve(img_url, output_path)
 

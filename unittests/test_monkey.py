@@ -1,9 +1,12 @@
-import unittest, pickle
+import unittest
+import pickle
 from os.path import join, realpath, dirname
 
 from PIL import Image
 import numpy as np
 import torch
+from torch import nn
+from torchvision import transforms
 
 from rtc_server.monkey import Monkey
 
@@ -17,7 +20,7 @@ class TestMonkey(unittest.TestCase):
         in_img_path = join(self.datadir, 'test_img.jpg')
         in_img = Image.open(in_img_path)
         self.in_img = np.array(in_img)
-        self.monkey = Monkey()
+        self.monkey = Monkey(use_cuda=False)
 
     def test_preprocess_img(self):
         """
@@ -55,13 +58,22 @@ class TestMonkey(unittest.TestCase):
         As part of preparing the cache when doing appearance transfer,
         monkey prepares appearance data to be fed into the VUNet
         appearance encoder. Test this is done correctly.
+        This tests quite a lot of functionality at once.
         """
-        joint_pos_path = join(self.datadir, 'test_joint_pos.pkl')
-        with open(joint_pos_path, 'rb') as in_f:
-            app_joint_pos = pickle.load(in_f)
+        app_img = self.monkey.preprocess_img(self.in_img)
+        app_tensor = transforms.ToTensor()(app_img).float()
+        app_tensor = app_tensor.view(1, 3, 256, 256)
 
-        output = self.monkey._prep_app_encoder_inp(self.in_img,
-                                                   app_joint_pos)
+        with torch.no_grad():
+            _, heat_maps = self.monkey.pose_model(app_tensor)
+
+        heat_maps = nn.functional.interpolate(heat_maps[-1], scale_factor=4)
+        heat_maps = heat_maps.view(18, 256, 256)
+        heat_maps = heat_maps.detach().numpy()
+
+        joint_pos = self.monkey.pose_drawer.extract_keypoints_from_heatmaps(heat_maps)
+
+        output = self.monkey._prep_app_encoder_inp(self.in_img, joint_pos)
 
         app_img, app_img_pose, localised_joints = output
 

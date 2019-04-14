@@ -1,7 +1,7 @@
 from torch import nn
 
-from v_u_net.model.U_Net import UNet
-from v_u_net.model.Appearance_Encoder import AppearanceEncoder
+from v_u_net.model.u_net import UNet
+from v_u_net.model.appearance_encoder import AppearanceEncoder
 
 class VUNet(nn.Module):
     def __init__(self):
@@ -10,8 +10,12 @@ class VUNet(nn.Module):
         self.u_net = UNet()
 
     def forward(self, orig_img, orig_pose_img, target_pose_img, localised_joints):
-        app_vec_1x1, app_vec_2x2, app_mu_1x1, app_mu_2x2 = self.appearance_encoder(orig_img, orig_pose_img, localised_joints)
-        gen_img, pose_mu_1x1, pose_mu_2x2 = self.u_net(target_pose_img, app_vec_1x1, app_vec_2x2)
+        appearance = self.appearance_encoder(orig_img, orig_pose_img,
+                                             localised_joints)
+        app_vec_1x1, app_vec_2x2, app_mu_1x1, app_mu_2x2 = appearance
+        gen_img, pose_mu_1x1, pose_mu_2x2 = self.u_net(target_pose_img,
+                                                       app_vec_1x1,
+                                                       app_vec_2x2)
         gen_img = nn.Sigmoid()(gen_img)
         return gen_img, app_mu_1x1, app_mu_2x2, pose_mu_1x1, pose_mu_2x2
 

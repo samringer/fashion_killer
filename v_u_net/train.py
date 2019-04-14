@@ -4,10 +4,9 @@ from absl import flags, app
 import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
-from tensorboardX import SummaryWriter
 from apex import amp
 
-from v_u_net.model.V_U_Net import VUNet
+from v_u_net.model.v_u_Net import VUNet
 from v_u_net.dataset import VUNetDataset
 from utils import (save_checkpoint,
                    load_checkpoint,
@@ -18,6 +17,7 @@ from utils import (save_checkpoint,
 FLAGS = flags.FLAGS
 FLAGS.task_path = '/home/sam/experiments/V_U_Net'
 FLAGS.data_dir = '/home/sam/data/deepfashion'
+FLAGS.batch_size = 8
 FLAGS.num_epochs = 30
 
 
@@ -36,7 +36,7 @@ def train(unused_argv):
     dataset = VUNetDataset(root_data_dir=FLAGS.data_dir,
                            overtrain=FLAGS.over_train)
     dataloader = DataLoader(dataset, batch_size=FLAGS.batch_size,
-                            shuffle=True, num_workers=4, pin_memory=True)
+                            shuffle=True, num_workers=6, pin_memory=True)
 
     optimizer = optim.Adam(model.parameters(), lr=FLAGS.learning_rate)
 
@@ -90,8 +90,7 @@ def _train_step(batch, model, optimizer):
     kl_divergence = _get_KL_Divergence(app_mu_1x1, app_mu_2x2,
                                        pose_mu_1x1, pose_mu_2x2)
 
-    # Scaling factor is empirical
-    loss = 8e-6 * kl_divergence + l1_loss
+    loss = kl_divergence + l1_loss
 
     optimizer.zero_grad()
     if FLAGS.use_fp16:
@@ -107,7 +106,9 @@ def _train_step(batch, model, optimizer):
 def _get_KL_Divergence(app_mu_1x1, app_mu_2x2, pose_mu_1x1, pose_mu_2x2):
     term_1 = torch.sum(0.5 * ((app_mu_1x1 - pose_mu_1x1).pow(2)))
     term_2 = torch.sum(0.5 * ((app_mu_2x2 - pose_mu_2x2).pow(2)))
-    return term_1 + term_2
+    kl_divergence = term_1 + term_2
+    # Scaling factor is empirical
+    return 1e-5 * kl_divergence
 
 
 # TODO: 

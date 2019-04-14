@@ -1,15 +1,15 @@
 from pathlib import Path
-import numpy as np
 import pickle
 
+import numpy as np
 from PIL import Image
 import torch
 from torchvision import transforms
 from torch.utils.data import Dataset
 
 import v_u_net.hyperparams as hp
-from pose_drawer.pose_drawer import Pose_Drawer
 from v_u_net.localise_joint_appearances import get_localised_joints
+from pose_drawer.pose_drawer import Pose_Drawer
 
 
 class VUNetDataset(Dataset):
@@ -31,10 +31,6 @@ class VUNetDataset(Dataset):
         with open(str(index_path), 'rb') as in_f:
             self.data = pickle.load(in_f)
 
-        self.trans = transforms.Compose([
-            transforms.ToTensor(),
-        ])
-
         self.joints_to_localise = [joint.value for joint in hp.joints_to_localise]
         self.pose_drawer = Pose_Drawer()
 
@@ -46,13 +42,11 @@ class VUNetDataset(Dataset):
             index = 0
 
         orig_img, pose_img, localised_joints = self._prepare_input_data(index)
-        orig_img = self.trans(orig_img)
-        pose_img = self.trans(pose_img).float()
-
-        # TODO: think this can change now not normalising
-        # Need to normalise one by one as lots of the images are black
-        localised_joints = [self.trans(joint_img) for joint_img in localised_joints]
-        localised_joints = torch.cat(localised_joints, dim=0).float()
+        orig_img = transforms.ToTensor()(orig_img)
+        pose_img = transforms.ToTensor()(pose_img)
+        localised_joints = [transforms.ToTensor()(i)
+                            for i in localised_joints]
+        localised_joints = torch.cat(localised_joints)
 
         return {'app_img': orig_img,
                 'pose_img': pose_img,
@@ -67,13 +61,16 @@ class VUNetDataset(Dataset):
         """
         img_path = self.root_data_dir/self.data['imgs'][index]
         orig_img = Image.open(str(img_path))
+        orig_img = np.asarray(orig_img) / 256
 
         joint_raw_pos = self.data['joints'][index]
         joint_raw_pos = _rearrange_keypoints(joint_raw_pos)
         joint_pixel_pos = (joint_raw_pos*hp.image_edge_size).astype('int')
 
         pose_img = self.pose_drawer.draw_pose_from_keypoints(joint_pixel_pos)
-        localised_joints = get_localised_joints(orig_img, self.joints_to_localise, joint_pixel_pos)
+        localised_joints = get_localised_joints(orig_img,
+                                                self.joints_to_localise,
+                                                joint_pixel_pos)
 
         return orig_img, pose_img, localised_joints
 
