@@ -16,12 +16,9 @@ from utils import (save_checkpoint,
                    set_seeds)
 
 FLAGS = flags.FLAGS
-flags.DEFINE_boolean('over_train', False, "Overtrain on one datapoint")
-flags.DEFINE_float('learning_rate', 1e-4, "Starting learning rate")
-flags.DEFINE_integer('batch_size', 4, "Batch size to use when training")
-flags.DEFINE_integer('num_epochs', 30, "Number of training epochs")
-
 FLAGS.task_path = '/home/sam/experiments/V_U_Net'
+FLAGS.data_dir = '/home/sam/data/deepfashion'
+FLAGS.num_epochs = 30
 
 
 def train(unused_argv):
@@ -36,7 +33,8 @@ def train(unused_argv):
     if FLAGS.use_cuda:
         model = model.cuda()
 
-    dataset = VUNetDataset(overtrain=FLAGS.over_train)
+    dataset = VUNetDataset(root_data_dir=FLAGS.data_dir,
+                           overtrain=FLAGS.over_train)
     dataloader = DataLoader(dataset, batch_size=FLAGS.batch_size,
                             shuffle=True, num_workers=4, pin_memory=True)
 
@@ -63,7 +61,7 @@ def train(unused_argv):
             gen_img, loss, l1_loss, kl_divergence = _train_step(batch, model, optimizer)
 
 
-            if step_num % FLAGS.ts_log_interval == 0:
+            if step_num % FLAGS.tb_log_interval == 0:
                 log_results(epoch, step_num, logger, gen_img, loss, l1_loss, kl_divergence)
 
             if step_num % FLAGS.checkpoint_interval == 0:

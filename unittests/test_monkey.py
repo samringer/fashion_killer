@@ -17,14 +17,14 @@ class TestMonkey(unittest.TestCase):
         in_img_path = join(self.datadir, 'test_img.jpg')
         in_img = Image.open(in_img_path)
         self.in_img = np.array(in_img)
+        self.monkey = Monkey()
 
     def test_preprocess_img(self):
         """
         Test ability to perform the standard preprocessing on
         an input image.
         """
-        monkey = Monkey()
-        preprocessed_img = monkey.preprocess_img(self.in_img)
+        preprocessed_img = self.monkey.preprocess_img(self.in_img)
 
         ground_truth_path = join(self.datadir, 'preprocessed_img.pkl')
         with open(ground_truth_path, 'rb') as in_f:
@@ -38,8 +38,7 @@ class TestMonkey(unittest.TestCase):
         Test ability of monkey to draw a pose img from an
         input img.
         """
-        monkey = Monkey(transform='pose')
-        pose_img = monkey.draw_pose_from_img(self.in_img)
+        pose_img = self.monkey.draw_pose_from_img(self.in_img)
         self.assertEqual(pose_img.shape, (256, 256, 3))
 
     def test_transfer_appearance(self):
@@ -47,9 +46,8 @@ class TestMonkey(unittest.TestCase):
         Test ability of monkey to do end to end appearance transfer.
         Requires drawing a pose img as an intermediate step.
         """
-        monkey = Monkey(transform='app_transfer')
-        pose_img = monkey.draw_pose_from_img(self.in_img)
-        appearance_img = monkey.transfer_appearance(pose_img)
+        pose_img = self.monkey.draw_pose_from_img(self.in_img)
+        appearance_img = self.monkey.transfer_appearance(pose_img)
         self.assertEqual(appearance_img.shape, (256, 256, 3))
 
     def test_prep_app_encoder_inp(self):
@@ -58,13 +56,12 @@ class TestMonkey(unittest.TestCase):
         monkey prepares appearance data to be fed into the VUNet
         appearance encoder. Test this is done correctly.
         """
-        monkey = Monkey(transform='app_transfer')
-
         joint_pos_path = join(self.datadir, 'test_joint_pos.pkl')
         with open(joint_pos_path, 'rb') as in_f:
             app_joint_pos = pickle.load(in_f)
 
-        output = monkey._prep_app_encoder_inp(self.in_img, app_joint_pos)
+        output = self.monkey._prep_app_encoder_inp(self.in_img,
+                                                   app_joint_pos)
 
         app_img, app_img_pose, localised_joints = output
 

@@ -18,15 +18,12 @@ from utils import (save_checkpoint,
 POSE_DRAWER = Pose_Drawer()
 
 FLAGS = flags.FLAGS
-flags.DEFINE_boolean('over_train', False, "Overtrain on one datapoint")
-flags.DEFINE_float('learning_rate', 1e-4, "Starting learning rate")
-flags.DEFINE_integer('batch_size', 4, "Batch size to use when training")
-flags.DEFINE_integer('num_epochs', 10, "Number of training epochs")
 flags.DEFINE_integer('min_joints_to_train_on', 10,
                      "The minimum num of joints an image should \
                       contain to be used as training data")
 
 FLAGS.task_path = '/home/sam/experiments/Pose_Detector'
+FLAGS.data_dir = '/home/sam/data/COCO'
 
 
 def train(unused_argv):
@@ -41,7 +38,9 @@ def train(unused_argv):
     if FLAGS.use_cuda:
         model = model.cuda()
 
-    dataset = PoseDetectorDataset(overtrain=FLAGS.over_train,
+    data_dir = '/home/sam/data/COCO'
+    dataset = PoseDetectorDataset(root_data_dir=FLAGS.data_dir,
+                                  overtrain=FLAGS.over_train,
                                   min_joints_to_train_on=FLAGS.min_joints_to_train_on)
     dataloader = DataLoader(dataset, batch_size=FLAGS.batch_size,
                             shuffle=True, num_workers=4, pin_memory=True)

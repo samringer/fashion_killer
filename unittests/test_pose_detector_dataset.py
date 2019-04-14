@@ -4,9 +4,9 @@ from os.path import join, dirname, realpath
 
 import torch, cv2
 
-from pose_detector.data_modules.dataset import PoseDetectorDataset
+from pose_detector.dataset import PoseDetectorDataset
 
-UNITTESTS_DIRECTORY = dirname(realpath(__file__))
+UNITTESTS_DIR = dirname(realpath(__file__))
 
 
 class Dataset_Unittester(unittest.TestCase):
@@ -15,8 +15,8 @@ class Dataset_Unittester(unittest.TestCase):
     """
 
     def setUp(self):
-        self.datadir = join(UNITTESTS_DIRECTORY, 'data/pose_detector')
-        self.dataset = PoseDetectorDataset(self.datadir)
+        self.datadir = join(UNITTESTS_DIR, 'data/pose_detector')
+        self.dataset = PoseDetectorDataset(root_data_dir=self.datadir)
 
     def test_valid_imgs(self):
         """
@@ -93,7 +93,8 @@ class Dataset_Unittester(unittest.TestCase):
         Keypoints need to have there position adjusted to account
         for transformations to the input image.
         """
-        from pose_detector.data_modules.dataset import _adjust_keypoints, _extract_keypoints_from_img_data
+        from pose_detector.dataset import (_adjust_keypoints,
+                                           _extract_keypoints_from_img_data)
         img_data = self.dataset.imgs_data[0]
         original_keypoints = _extract_keypoints_from_img_data(img_data)
 
@@ -116,7 +117,8 @@ class Dataset_Unittester(unittest.TestCase):
         Joints that are not found should have their losses
         masked during training.
         """
-        from pose_detector.data_modules.dataset import _get_kp_loss_mask, _extract_keypoints_from_img_data
+        from pose_detector.dataset import (_get_kp_loss_mask,
+                                          _extract_keypoints_from_img_data)
         img_data = self.dataset.imgs_data[0]
         keypoints = _extract_keypoints_from_img_data(img_data)
 
@@ -132,7 +134,7 @@ class Image_Processing_Unittests(unittest.TestCase):
     and image json data.
     """
     def setUp(self):
-        self.datadir = join(UNITTESTS_DIRECTORY, 'data/pose_detector')
+        self.datadir = join(UNITTESTS_DIR, 'data/pose_detector')
 
         json_path = join(self.datadir, 'test.json')
         with open(json_path, 'r') as in_f:
@@ -145,7 +147,7 @@ class Image_Processing_Unittests(unittest.TestCase):
         Test ability to return only images that
         contain at least one keypoint.
         """
-        from pose_detector.data_modules.dataset import _get_valid_imgs
+        from pose_detector.dataset import _get_valid_imgs
 
         valid_img_indicies = _get_valid_imgs(self.imgs_data)
 
@@ -157,7 +159,7 @@ class Image_Processing_Unittests(unittest.TestCase):
         keypoints. Should always be 18 joints, regardless
         of whether they have been found or not.
         """
-        from pose_detector.data_modules.dataset import _extract_keypoints_from_img_data
+        from pose_detector.dataset import _extract_keypoints_from_img_data
 
         test_img_data = self.imgs_data[0]
         keypoints = _extract_keypoints_from_img_data(test_img_data)
@@ -177,7 +179,7 @@ class Image_Processing_Unittests(unittest.TestCase):
         Test ability to produce information that cv2 uses for
         cropping from images bounding box info.
         """
-        from pose_detector.data_modules.dataset import _get_cropping_rectangle_from_img_data
+        from pose_detector.dataset import _get_cropping_rectangle_from_img_data
 
         test_img_data = self.imgs_data[0]
 
@@ -190,7 +192,7 @@ class Image_Processing_Unittests(unittest.TestCase):
         """
         Test resizing imgs so max dim==256
         """
-        from pose_detector.data_modules.dataset import _resize_img
+        from pose_detector.dataset import _resize_img
 
         img = cv2.imread(self.test_img_path)
         max_dim = 256
@@ -203,7 +205,7 @@ class Image_Processing_Unittests(unittest.TestCase):
         Should be able to pad an image along smallest dim
         such that it forms a square.
         """
-        from pose_detector.data_modules.dataset import _pad_img
+        from pose_detector.dataset import _pad_img
 
         unpadded_img_path = join(self.datadir, 'unpadded_img.png')
         unpadded_img = cv2.imread(unpadded_img_path)
@@ -221,7 +223,7 @@ class Image_Processing_Unittests(unittest.TestCase):
         """
         Test creation of heat map from a keypoint.
         """
-        from pose_detector.data_modules.dataset import _create_heat_map
+        from pose_detector.dataset import _create_heat_map
 
         keypoint = (100, 50)
         edge_size = 256
@@ -243,7 +245,7 @@ class Image_Processing_Unittests(unittest.TestCase):
         """
         Test drawing of part affinity field from keypoint.
         """
-        from pose_detector.data_modules.dataset import _draw_part_affinity_field
+        from pose_detector.dataset import _draw_part_affinity_field
         start_point = [10, 20]
         end_point = [30, 40]
         canvas = np.zeros([2, 256, 256])

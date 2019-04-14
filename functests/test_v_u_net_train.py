@@ -1,43 +1,44 @@
 import unittest
+import shutil
+from tempfile import mkdtemp
 from os.path import join, dirname, realpath
 
-from torch import optim
-from torch.utils.data import DataLoader
+from absl import flags, app
 
-from v_u_net.data_modules.dataset import VUNetDataset
-from v_u_net.model.V_U_Net import VUNet
-from v_u_net.train import _train_step
+from v_u_net.train import train
 
-FUNCTESTS_DIRECTORY = dirname(realpath(__file__))
+FUNCTESTS_DIR = dirname(realpath(__file__))
 
 
-# TODO: These all need to be done more professionally like in the metalearning repo
 class TestVUNetTrain(unittest.TestCase):
     """
     Test the ability of the VUNet train code to run a complete forward
     and backward pass.
     """
+    def setUp(self):
+        self.tmp_dir = mkdtemp()
+        self.args = [
+            'prog',
+            '--data_dir', join(FUNCTESTS_DIR, 'data/v_u_net'),
+            '--num_epochs', '1',
+            '--batch_size', '1',
+            '--task_path', self.tmp_dir,
+            '--exp_name', 'test_v_u_net',
+            '--use_cuda', 'False',
+            '--use_fp16', 'False',
+        ]
 
-    def test_train(self):
-        datadir = join(FUNCTESTS_DIRECTORY, 'data/v_u_net_data')
-        dataset = VUNetDataset(datadir)
-        dataloader = DataLoader(dataset, batch_size=1)
-        model = VUNet()
-        # TODO: 
-        model = model.cuda()
-        optimizer = optim.Adam(model.parameters(), lr=0.001)
+    def tearDown(self):
+        shutil.rmtree(self.tmp_dir)
+        flags.FLAGS.unparse_flags()
 
-        batch = next(iter(dataloader))
-        output = _train_step(batch, model, optimizer)
-        gen_img, total_loss, l1_loss, kl_divergence = output
-
-        # TODO: 
-        # Check the correct dimensionality of the generated img
-
-        # Check the losses are all positive and a single number
-        for loss in [total_loss, l1_loss, kl_divergence]:
-            self.assertTrue(loss.item() > 0)
-            self.assertEqual(loss.shape, [1])
+    def test_v_u_net_train(self):
+        """
+        Test a full training loop.
+        """
+        with self.assertRaises(SystemExit) as seo:
+            app.run(main=train, argv=self.args)
+        self.assertEqual(seo.exception.code, None)
 
 
 if __name__ == "__main__":

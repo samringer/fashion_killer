@@ -5,10 +5,10 @@ import numpy as np
 import torch, cv2
 from PIL import Image
 
-from v_u_net.data_modules.dataset import VUNetDataset, _rearrange_keypoints
+from v_u_net.dataset import VUNetDataset, _rearrange_keypoints
 
 
-UNITTESTS_DIRECTORY = dirname(realpath(__file__))
+UNITTESTS_DIR = dirname(realpath(__file__))
 
 
 class VUNetDatasetTester(unittest.TestCase):
@@ -17,7 +17,7 @@ class VUNetDatasetTester(unittest.TestCase):
     """
 
     def setUp(self):
-        self.datadir = join(UNITTESTS_DIRECTORY, 'data/v_u_net')
+        self.datadir = join(UNITTESTS_DIR, 'data/v_u_net')
         self.dataset = VUNetDataset(self.datadir)
 
     def test_dataset_length(self):
@@ -41,8 +41,8 @@ class ImageProcessingTester(unittest.TestCase):
     Tests general image processing of input data.
     """
     def setUp(self):
-        self.datadir = join(UNITTESTS_DIRECTORY, 'data/v_u_net')
-        self.dataset = VUNetDataset(self.datadir)
+        self.datadir = join(UNITTESTS_DIR, 'data/v_u_net')
+        self.dataset = VUNetDataset(root_data_dir=self.datadir)
 
     def test_generate_pose_img(self):
         from pose_drawer.pose_drawer import Pose_Drawer
