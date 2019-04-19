@@ -40,7 +40,7 @@ class Dataset_Unittester(unittest.TestCase):
         datapoint = next(iter(self.dataset))
         img = datapoint['img']
         keypoint_heat_maps = datapoint['keypoint_heat_maps']
-        part_affinity_fields = datapoint['part_affinity_fields']
+        part_affinity_fields = datapoint['p_a_f']
         kp_loss_mask = datapoint['kp_loss_mask']
         p_a_f_loss_mask = datapoint['p_a_f_loss_mask']
 

@@ -11,6 +11,7 @@ import v_u_net.hyperparams as hp
 from v_u_net.localise_joint_appearances import get_localised_joints
 from pose_drawer.pose_drawer import Pose_Drawer
 
+image_edge_size = 256
 
 class VUNetDataset(Dataset):
     """

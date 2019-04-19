@@ -47,7 +47,9 @@ class JointBlock(nn.Module):
         x = self.conv_block_5(x)
         x = self.conv_1x1a(x)
         x = self.conv_1x1b(x)
-        heat_maps = nn.Sigmoid()(x)
+        # TODO: Add back in
+        # heat_maps = nn.Sigmoid()(x)
+        heat_maps = x
         return heat_maps
 
 

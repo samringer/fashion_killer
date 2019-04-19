@@ -61,8 +61,8 @@ class ImageTransformer:
         while True:
             self.preprocessed_img = self.monkey.preprocess_img(self.in_img)
             # WebRTC wants in range 0-256
-            if self.preprocessed_img is not None:
-                self.preprocessed_img *= 256
+            #if self.in_img is not None:
+            #    self.preprocessed_img *= 256
 
     def _pose_detection(self):
         """

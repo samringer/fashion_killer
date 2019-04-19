@@ -15,7 +15,7 @@ from pose_drawer.pose_settings import Pose_Settings
 
 class PoseDetectorDataset(Dataset):
     """
-    Dataset consists of images with associated keypoint heatmaps.
+    Dataset consists of images with associated keypoints.
     """
     def __init__(self, root_data_dir='/home/sam/data/COCO',
                  overtrain=False,
@@ -29,7 +29,7 @@ class PoseDetectorDataset(Dataset):
         self.overtrain = overtrain
         self.min_joints_to_train_on = min_joints_to_train_on
 
-        # Needed for drawing the PAFs.
+        # Needed for drawing the Part Affinity Fields.
         self.pose_settings = Pose_Settings()
 
         with open(str(keypoints_path), 'r') as in_f:
@@ -37,10 +37,6 @@ class PoseDetectorDataset(Dataset):
 
         self.valid_img_indicies = _get_valid_imgs(self.imgs_data,
                                                   self.min_joints_to_train_on)
-
-        self.trans = transforms.Compose([
-            transforms.ToTensor(),
-        ])
 
     def __len__(self):
         return len(self.valid_img_indicies)
@@ -50,15 +46,18 @@ class PoseDetectorDataset(Dataset):
         if self.overtrain:
             index = 0 # Use 12 for a 'good' pose
 
+        # Perform mapping from all indices to valid indices
         valid_index = self.valid_img_indicies[index]
-        img_id = str(self.imgs_data[valid_index]['image_id']).zfill(12)
         img_data = self.imgs_data[valid_index]
+        img_id = str(img_data['image_id']).zfill(12)
 
         img_file_path = join(self.imgs_path, img_id+'.jpg')
         img = cv2.imread(img_file_path)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        img = np.asarray(img) / 256
         img, keypoint_trans_info = self._prepare_img(img, img_data)
-        img = img.astype('double')
-        img = self.trans(img).float()
+        img = transforms.ToTensor()(img)
 
         keypoints = _extract_keypoints_from_img_data(img_data)
         keypoints = _adjust_keypoints(keypoints, *keypoint_trans_info)
@@ -68,18 +67,18 @@ class PoseDetectorDataset(Dataset):
 
         p_a_fs, p_a_f_loss_mask = self._create_part_affinity_fields(keypoints)
 
-        return {'img': img,
+        return {'img': img.float(),
                 'keypoint_heat_maps': keypoint_heat_maps.float(),
                 'kp_loss_mask': kp_loss_mask,
-                'part_affinity_fields': p_a_fs.float(),
+                'p_a_f': p_a_fs.float(),
                 'p_a_f_loss_mask': p_a_f_loss_mask}
 
     def _prepare_img(self, img, img_data):
         """
         Prepare an image for input into model.
-        Performs BGR to RGB conversion, cropping, resizing and padding.
+        Performs cropping, resizing and padding.
         Note this DOES NOT include PyTorch transformations like
-        converting to a tensor and normalising.
+        converting to a tensor.
         Args:
             img (np array)
             img_data (dict): Data about things like bbox in img.
@@ -87,7 +86,6 @@ class PoseDetectorDataset(Dataset):
             out_img (np array): Cropped image of correct square size.
             keypoint_trans_info (tuple): Info needed to correctly adjust keypoint location.
         """
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         (x_0, y_0), width, height = _get_cropping_rectangle_from_img_data(img_data)
         cropped_img = img[y_0:y_0+height, x_0:x_0+width, :]
         resized_img, scale_factor = _resize_img(cropped_img, self.max_dim)
@@ -107,20 +105,20 @@ class PoseDetectorDataset(Dataset):
         """
         Create PAF for each limb.
         Returns:
-            part_affinity_fields: A single tensor of all the PAFs.
-            paf_loss_mask: Loss mask so non-present limbs are not
-                           scored during training.
+            part_affinity_fields (tensor): A single tensor of all the PAFs.
+            paf_loss_mask (tensor): Loss mask so non-present limbs are not
+                                    scored during training.
         """
         desired_connections = self.pose_settings.desired_connections
         part_affinity_fields = []
         p_a_f_loss_mask = []
 
-        for i, limb in enumerate(desired_connections):
-            p_a_f = np.zeros([2, self.max_dim, self.max_dim])
+        for limb in desired_connections:
             start_joint, end_joint = limb
             start_point = keypoints[start_joint.value]
             end_point = keypoints[end_joint.value]
 
+            p_a_f = np.zeros([2, self.max_dim, self.max_dim])
             if start_point != (0, 0) and end_point != (0, 0):
                 p_a_f_loss_mask.extend([1., 1.])
                 p_a_f = _draw_part_affinity_field(start_point,
@@ -130,24 +128,21 @@ class PoseDetectorDataset(Dataset):
                 p_a_f_loss_mask.extend([0., 0.])
 
             part_affinity_fields.append(torch.from_numpy(p_a_f))
-
-
         part_affinity_fields = torch.cat(part_affinity_fields)
-
         return part_affinity_fields, torch.Tensor(p_a_f_loss_mask)
 
 
 def _get_valid_imgs(data, min_joints_to_train_on=1):
     """
     Used to get indexes of all the images in the dataset
-    that contain at least six keypoints.
+    that contain at least min_joints_to_train_on keypoints.
     Args:
         data (dict): Contains info about each img in dataset.
         min_joints_to_train_on (int): All images used must contain
                                       at least this many keypoints.
     Returns:
         valid_img_ids (l o int): Image ids that contain
-                                 at least requried num keypoints.
+                                 at least required num keypoints.
     """
     valid_img_indicies = []
     for index, img in enumerate(data):
@@ -168,9 +163,9 @@ def _get_kp_loss_mask(keypoints):
     kp_loss_mask = []
     for point in keypoints:
         if point == (0, 0):
-            kp_loss_mask.append(0)
+            kp_loss_mask.append(0.)
         else:
-            kp_loss_mask.append(1)
+            kp_loss_mask.append(1.)
     return torch.Tensor(kp_loss_mask)
 
 
@@ -263,7 +258,7 @@ def _pad_img(img, x_offset, y_offset):
     """
     height, width, _ = img.shape
     max_dim = max(height, width)
-    canvas = np.zeros([max_dim, max_dim, 3]).astype(int)
+    canvas = np.zeros([max_dim, max_dim, 3])
     canvas[y_offset:height+y_offset, x_offset:width+x_offset, :] = img
     return canvas
 
@@ -335,7 +330,8 @@ def _create_heat_map(keypoint, edge_size, sigma=20):
             heat = math.e**(-exponent)
 
             # The 0.9 is label smoothing.
-            heat = heat * 0.9
+            # TODO: Add label smoothing back in
+            #heat = heat * 0.9
             heat_map[col_num][row_num] = heat
     return heat_map
 
@@ -379,4 +375,5 @@ def _draw_part_affinity_field(start_point, end_point, canvas):
     img_0 *= unit_vec[0]
     img_1 *= unit_vec[1]
     canvas = np.stack([np.asarray(img_0), np.asarray(img_1)])
-    return canvas.astype(float)
+    canvas = canvas.astype(float)  # Numpy converts to double
+    return canvas

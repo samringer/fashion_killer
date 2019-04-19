@@ -18,6 +18,7 @@ def get_localised_joints(img, joints_to_localise, joint_positions):
         localised_joints (list): np arrays of each localised joint image.
     """
     localised_joints = []
+    joint_crop_box_edge_size = 64
     for joint_id in joints_to_localise:
         joint_position = joint_positions[joint_id]
 
@@ -26,7 +27,7 @@ def get_localised_joints(img, joints_to_localise, joint_positions):
             joint_img = np.zeros(img.shape)
         else:
             joint_img = get_joint_image(img, joint_position,
-                                        hp.joint_crop_box_edge_size)
+                                        joint_crop_box_edge_size)
         localised_joints.append(joint_img)
     return localised_joints
 

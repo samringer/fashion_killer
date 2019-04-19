@@ -29,25 +29,35 @@ flags.DEFINE_float('learning_rate', 1e-4, "Starting learning rate")
 flags.DEFINE_integer('batch_size', 4, "Batch size to use when training")
 flags.DEFINE_integer('num_epochs', 10, "Number of training epochs")
 
-def save_checkpoint(model, optimizer, save_path):
+
+def save_checkpoint(model, optimizer, scheduler, step_num):
     """
-    Checkpoint both the model and optimizer.
-    Save them both together in a tuple.
+    Checkpoint the model, optimizer and scheduler.
+    Saves them all together in a tuple representing the train state.
     """
+    exp_dir = join(FLAGS.task_path, FLAGS.exp_name)
+    save_path = join(exp_dir, 'models', '{}.chk'.format(step_num))
+
+    checkpoint_state = (model.state_dict(),
+                        optimizer.state_dict(),
+                        scheduler.state_dict(),
+                        step_num)
     with open(save_path, 'wb') as out_f:
-        pickle.dump((model.state_dict(), optimizer.state_dict()), out_f)
+        pickle.dump(checkpoint_state, out_f)
 
 
-def load_checkpoint(model, optimizer):
+def load_checkpoint(model, optimizer, scheduler):
     """
-    Load the model and optimizer state dict from the path provided
-    by FLAGS.load_checkpoint.
+    Load the model, optimizer and scheduler state dicts from
+    the path provided by FLAGS.load_checkpoint.
     """
     with open(FLAGS.load_checkpoint, 'rb') as in_f:
-        model_state_dict, optimizer_state_dict = pickle.load(in_f)
-        model.load_state_dict(model_state_dict)
-        optimizer.load_state_dict(optimizer_state_dict)
-    return model, optimizer
+        checkpoint_state = pickle.load(in_f)
+    model_sd, optimizer_sd, scheduler_sd, step_num = checkpoint_state
+    model.load_state_dict(model_sd)
+    optimizer.load_state_dict(optimizer_sd)
+    scheduler.load_state_dict(scheduler_sd)
+    return model, optimizer, scheduler, step_num
 
 
 def prepare_experiment_dirs():

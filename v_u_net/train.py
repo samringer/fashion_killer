@@ -6,7 +6,7 @@ from torch import nn, optim
 from torch.utils.data import DataLoader
 from apex import amp
 
-from v_u_net.model.v_u_Net import VUNet
+from v_u_net.model.v_u_net import VUNet
 from v_u_net.dataset import VUNetDataset
 from utils import (save_checkpoint,
                    load_checkpoint,
@@ -43,21 +43,23 @@ def train(unused_argv):
     if FLAGS.use_fp16:
         model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
 
+    step_num = 0
     lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.8)
 
     if FLAGS.load_checkpoint:
-        model, optimizer = load_checkpoint(model, optimizer)
+        checkpoint_state = load_checkpoint(model, optimizer, lr_scheduler)
+        model, optimizer, lr_scheduler, step_num = checkpoint_state
         print('Loaded from checkpoint {}'.format(FLAGS.load_checkpoint))
 
     for epoch in range(FLAGS.num_epochs):
+        # TODO: This is not rock solid between checkpoints
         lr_scheduler.step()
 
         # Save a model at the start of each epoch
         save_path = join(models_path, '{}.pt'.format(epoch))
         torch.save(model.state_dict(), save_path)
 
-        for i, batch in enumerate(dataloader):
-            step_num = (epoch*len(dataloader))+i
+        for batch in dataloader:
             gen_img, loss, l1_loss, kl_divergence = _train_step(batch, model, optimizer)
 
 
@@ -65,11 +67,11 @@ def train(unused_argv):
                 log_results(epoch, step_num, logger, gen_img, loss, l1_loss, kl_divergence)
 
             if step_num % FLAGS.checkpoint_interval == 0:
-                save_path = join(models_path, '{}.chk'.format(step_num))
-                save_checkpoint(model, optimizer, save_path)
+                save_checkpoint(model, optimizer, lr_scheduler, step_num)
                 print('Model & optimizer checkpointed at {}'.format(save_path))
 
             print(step_num, f"{loss.item():.3f}")
+            step_num += 1
 
 
 def _train_step(batch, model, optimizer):

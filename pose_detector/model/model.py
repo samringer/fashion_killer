@@ -17,6 +17,7 @@ class PoseDetector(nn.Module):
         self.limb_block_1 = LimbBlock(256)
         self.limb_block_2 = LimbBlock(256+2*num_limbs)
         self.limb_block_3 = LimbBlock(256+2*num_limbs)
+        self.limb_block_4 = LimbBlock(256+2*num_limbs)
 
         self.joint_block_1 = JointBlock(256+2*num_limbs)
         self.joint_block_2 = JointBlock(256+2*num_limbs+num_joints)
@@ -32,11 +33,15 @@ class PoseDetector(nn.Module):
         limb_map_3 = self.limb_block_3(x)
 
         x = torch.cat((F, limb_map_3), dim=1)
+        limb_map_4 = self.limb_block_4(x)
+
+        x = torch.cat((F, limb_map_4), dim=1)
         joint_map_1 = self.joint_block_1(x)
 
-        x = torch.cat((F, limb_map_3, joint_map_1), dim=1)
+        x = torch.cat((F, limb_map_4, joint_map_1), dim=1)
         joint_map_2 = self.joint_block_2(x)
 
-        part_affinity_fields = [limb_map_1, limb_map_2, limb_map_3]
+        part_affinity_fields = [limb_map_1, limb_map_2, limb_map_3,
+                                limb_map_4]
         heat_maps = [joint_map_1, joint_map_2]
         return part_affinity_fields, heat_maps

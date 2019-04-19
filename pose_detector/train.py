@@ -3,6 +3,7 @@ from os.path import join
 from absl import flags, app
 import torch
 from torch import nn, optim
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 from apex import amp
 
@@ -42,7 +43,7 @@ def train(unused_argv):
                                   overtrain=FLAGS.over_train,
                                   min_joints_to_train_on=FLAGS.min_joints_to_train_on)
     dataloader = DataLoader(dataset, batch_size=FLAGS.batch_size,
-                            shuffle=True, num_workers=4, pin_memory=True)
+                            shuffle=True, num_workers=6, pin_memory=True)
 
     optimizer = optim.Adam(model.parameters(), lr=FLAGS.learning_rate)
 
@@ -50,36 +51,40 @@ def train(unused_argv):
         model, optimizer = amp.initialize(model, optimizer,
                                           opt_level='O1')
 
-    lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.5)
+    step_num = 0
+    lr_scheduler = ReduceLROnPlateau(optimizer, factor=0.5,
+                                     patience=5000, verbose=True,
+                                     min_lr=FLAGS.learning_rate/50)
 
     if FLAGS.load_checkpoint:
-        model, optimizer = load_checkpoint(model, optimizer)
+        checkpoint_state = load_checkpoint(model, optimizer, lr_scheduler)
+        model, optimizer, lr_scheduler, step_num = checkpoint_state
         print('Loaded from checkpoint {}'.format(FLAGS.load_checkpoint))
 
     for epoch in range(FLAGS.num_epochs):
-        lr_scheduler.step()
 
         # Save a model at the start of each epoch
         save_path = join(models_path, '{}.pt'.format(epoch))
         torch.save(model.state_dict(), save_path)
 
-        for i, batch in enumerate(dataloader):
-            step_num = epoch*len(dataloader) + i
+        for batch in dataloader:
             _, pred_heat_maps, loss = _train_step(batch, model, optimizer)
 
             if step_num % FLAGS.tb_log_interval == 0:
                 log_results(epoch, step_num, logger, pred_heat_maps, loss)
-                if step_num % FLAGS.checkpoint_interval == 0:
-                    save_path = join(models_path, '{}.chk'.format(step_num))
-                    save_checkpoint(model, optimizer, save_path)
-                    print('Model & optimizer checkpointed at {}'.format(save_path))
-                    print(step_num, f"{loss.item():.3f}")
+            if step_num % FLAGS.checkpoint_interval == 0:
+                save_checkpoint(model, optimizer, lr_scheduler, step_num)
+                print('Model & optimizer checkpointed at {}'.format(save_path))
+            print(step_num, f"{loss.item():.3f}")
+            step_num += 1
+            # TODO: This is not rock solid between checkpoints
+            lr_scheduler.step(loss.item())
 
 
 def _train_step(batch, model, optimizer):
     img = batch['img']
     true_heat_maps = batch['keypoint_heat_maps']
-    true_pafs = batch['part_affinity_fields']
+    true_pafs = batch['p_a_f']
     kp_loss_mask = batch['kp_loss_mask']
     paf_loss_mask = batch['p_a_f_loss_mask']
 
@@ -108,7 +113,7 @@ def _train_step(batch, model, optimizer):
             scaled_loss.backward()
     else:
         loss.backward()
-        optimizer.step()
+    optimizer.step()
 
     return pred_pafs, pred_heat_maps, loss
 
@@ -125,7 +130,7 @@ def get_heatmap_loss(pred_heat_maps, true_heat_maps, kp_loss_mask):
     for pred_heat_map in pred_heat_maps:
         pred_heat_map_masked = pred_heat_map * kp_loss_mask
         heatmap_loss += nn.MSELoss()(pred_heat_map_masked, true_heat_maps_masked)
-        return heatmap_loss
+    return heatmap_loss
 
 
 def get_part_affinity_field_loss(pred_pafs, true_pafs, paf_loss_mask):
@@ -141,7 +146,7 @@ def get_part_affinity_field_loss(pred_pafs, true_pafs, paf_loss_mask):
     for pred_paf in pred_pafs:
         pred_paf_masked = pred_paf * paf_loss_mask
         paf_loss += nn.MSELoss()(pred_paf_masked, true_pafs_masked)
-        return paf_loss
+    return paf_loss
 
 
 def log_results(epoch, step_num, writer, pred_heat_maps, loss):

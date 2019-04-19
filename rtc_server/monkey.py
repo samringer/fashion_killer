@@ -7,7 +7,7 @@ from torch import nn
 from torchvision import transforms
 
 from pose_detector.model.model import PoseDetector
-from v_u_net.model.V_U_Net import CachedVUNet
+from v_u_net.model.v_u_net import CachedVUNet
 from pose_drawer.pose_drawer import Pose_Drawer
 import v_u_net.hyperparams as hp
 from v_u_net.localise_joint_appearances import get_localised_joints
@@ -19,29 +19,29 @@ class Monkey:
     https://jackiechanadventures.fandom.com/wiki/Monkey_Talisman
     """
 
+    use_cuda = True
     pose_drawer = Pose_Drawer()
 
-    def __init__(self, use_cuda=True):
-        self.use_cuda = use_cuda
-        pose_model_base_path = 'pretrained_models/pose_detector.pt'
+    def __init__(self):
+        #pose_model_base_path = 'pretrained_models/pose_detector.pt'
+        pose_model_base_path = 'pretrained_models/1904_pose_detector.py'
         pose_model = PoseDetector()
         pose_model.load_state_dict(torch.load(pose_model_base_path))
-        pose_model = pose_model.eval()
+        self.pose_model = pose_model.eval()
         if self.use_cuda:
-            pose_model = pose_model.cuda()
-        self.pose_model = pose_model
+            self.pose_model = self.pose_model.cuda()
 
-        app_model_base_path = 'pretrained_models/v_u_net.pt'
+        #app_model_base_path = 'pretrained_models/v_u_net.pt'
+        app_model_base_path = 'pretrained_models/v_u_net_150419.pt'
         app_model = CachedVUNet()
         app_model.load_state_dict(torch.load(app_model_base_path))
-        app_model = app_model.eval()
+        self.app_model = app_model.eval()
         if self.use_cuda:
-            app_model = app_model.cuda()
-        self.app_model = app_model
+            self.app_model = self.app_model.cuda()
 
         # TODO: This is temporary and should be neatened up
-        app_img_path = 'test_imgs/test_appearance_img.jpg'
-        #app_img_path = '/home/sam/data/deepfashion/train/03137_4.jpg'
+        #app_img_path = 'test_imgs/test_appearance_img.jpg'
+        app_img_path = 'test_imgs/1904_app_img.jpg'
         app_img = Image.open(app_img_path)
         app_img = np.asarray(app_img)
         app_img = app_img / 256
@@ -65,7 +65,7 @@ class Monkey:
         scale_factor = 256 / current_max_dim
         resized_img = cv2.resize(img, None, fx=scale_factor, fy=scale_factor)
         height, width, _ = resized_img.shape
-        canvas = np.zeros([256, 256, 3]).astype(int)
+        canvas = np.zeros([256, 256, 3])
         canvas[:height, :width, :] = resized_img
         return canvas
 
@@ -78,6 +78,7 @@ class Monkey:
         if pose_img is None:
             return
 
+        # TODO: Remove this float
         pose_img = transforms.ToTensor()(pose_img).float()
         pose_img = pose_img.unsqueeze(0)
         if self.use_cuda:
@@ -101,21 +102,24 @@ class Monkey:
             return
 
         img = self.preprocess_img(img)
-        img = img.astype('double')
+        # TODO: The 'float()' here should be fixed so not needed
         img_tensor = transforms.ToTensor()(img).float()
 
         if self.use_cuda:
             img_tensor = img_tensor.cuda()
 
         with torch.no_grad():
-            _, pred_heat_maps = self.pose_model(img_tensor.view(1, 3, 256, 256))
+            _, heat_maps = self.pose_model(img_tensor.view(1, 3, 256, 256))
 
-        final_heat_maps = nn.functional.interpolate(pred_heat_maps[-1], scale_factor=4)
-        final_heat_maps = final_heat_maps.view(18, 256, 256)
-        final_heat_maps = final_heat_maps.cpu().detach().numpy()
-        final_heat_maps = _zero_heat_map_edges(final_heat_maps)
+        heat_maps = nn.functional.interpolate(heat_maps[-1], scale_factor=4)
+        heat_maps = heat_maps.view(18, 256, 256)
+        heat_maps = heat_maps.cpu().detach().numpy()
+        # TODO: potentially remove
+        #heat_maps = _zero_heat_map_edges(heat_maps)
+        #heat_maps = _remove_heats_of_1(heat_maps)
 
-        return self.pose_drawer.draw_pose_from_heatmaps(final_heat_maps)
+        # TODO: 'heatmaps' vs 'heat_maps'
+        return self.pose_drawer.draw_pose_from_heatmaps(heat_maps)
 
     def _generate_appearance_cache(self, app_img):
         """
@@ -124,6 +128,7 @@ class Monkey:
         """
         app_img = self.preprocess_img(app_img)
         # TODO: There is lots of replication in here thats in other methods
+        # TODO: Work so this float is not needed
         app_tensor = transforms.ToTensor()(app_img).float()
         app_tensor = app_tensor.view(1, 3, 256, 256)
 
@@ -136,7 +141,7 @@ class Monkey:
         heat_maps = nn.functional.interpolate(heat_maps[-1], scale_factor=4)
         heat_maps = heat_maps.view(18, 256, 256)
         heat_maps = heat_maps.cpu().detach().numpy()
-        heat_maps = _zero_heat_map_edges(heat_maps)
+        #heat_maps = _zero_heat_map_edges(heat_maps)
 
         joint_pos = self.pose_drawer.extract_keypoints_from_heatmaps(heat_maps)
         app_encoder_inp = self._prep_app_encoder_inp(app_img, joint_pos)
@@ -158,13 +163,16 @@ class Monkey:
                                                 app_joint_pos)
 
         app_img_pose = self.pose_drawer.draw_pose_from_keypoints(app_joint_pos)
+        # TODO: Remove these floats here
         app_img = transforms.ToTensor()(app_img).float()
         app_img_pose = transforms.ToTensor()(app_img_pose).float()
 
         # TODO: This can be neater
-        localised_joints = [transforms.ToTensor()(joint_img).float()
-                            for joint_img in localised_joints]
-        localised_joints = torch.cat(localised_joints, dim=0).float()
+        # TODO: Remove the float
+        localised_joints = [transforms.ToTensor()(i).float()
+                            for i in localised_joints]
+        # TODO: Remove the float
+        localised_joints = torch.cat(localised_joints).float()
 
         # Mock having batch size one to make dimensions work in model.
         app_img = app_img.unsqueeze(0)
@@ -193,4 +201,23 @@ def _zero_heat_map_edges(heat_map_tensor):
     heat_map_tensor[:, :, :5] = np.zeros([18, 256, 5])
     heat_map_tensor[:, -5:, :] = np.zeros([18, 5, 256])
     heat_map_tensor[:, :, -5:] = np.zeros([18, 256, 5])
+    return heat_map_tensor
+
+
+def _remove_heats_of_1(heat_map_tensor):
+    """
+    If any value of any part of a heat map has a value of
+    exactly 1.0 then it is likely that there is an error.
+    Turn these 1.0s into 0.0s.
+    This is a hack to fix that and should ideally not be permenant.
+    Args:
+        heat_map_tensor (PyTorch tensor): Of size (18, 256, 256)
+    Returns:
+        heat_map_tensor (PyTorch tensor): Of size (18, 256, 256)
+    """
+    for i in range(18):
+        for j in range(256):
+            for k in range(256):
+                if heat_map_tensor[i, j, k] == 1.0:
+                    heat_map_tensor[i, j, k] = 0.0
     return heat_map_tensor

@@ -20,7 +20,7 @@ class TestMonkey(unittest.TestCase):
         in_img_path = join(self.datadir, 'test_img.jpg')
         in_img = Image.open(in_img_path)
         self.in_img = np.array(in_img)
-        self.monkey = Monkey(use_cuda=False)
+        self.monkey = Monkey()
 
     def test_preprocess_img(self):
         """
