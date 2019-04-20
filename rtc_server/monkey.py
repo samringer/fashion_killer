@@ -23,14 +23,14 @@ class Monkey:
     pose_drawer = Pose_Drawer()
 
     def __init__(self):
-        #pose_model_base_path = 'pretrained_models/pose_detector.pt'
-        pose_model_base_path = 'pretrained_models/1904_pose_detector.py'
+        pose_model_base_path = 'pretrained_models/pose_detector.pt'
         pose_model = PoseDetector()
         pose_model.load_state_dict(torch.load(pose_model_base_path))
         self.pose_model = pose_model.eval()
         if self.use_cuda:
             self.pose_model = self.pose_model.cuda()
 
+        """
         #app_model_base_path = 'pretrained_models/v_u_net.pt'
         app_model_base_path = 'pretrained_models/v_u_net_150419.pt'
         app_model = CachedVUNet()
@@ -41,11 +41,13 @@ class Monkey:
 
         # TODO: This is temporary and should be neatened up
         #app_img_path = 'test_imgs/test_appearance_img.jpg'
-        app_img_path = 'test_imgs/1904_app_img.jpg'
+        app_img_path = 'test_imgs/2004_app_img.jpg'
+        app_img = '/home/sam/data/deepfashion/train/07608_4.jpg'
         app_img = Image.open(app_img_path)
         app_img = np.asarray(app_img)
         app_img = app_img / 256
         self._generate_appearance_cache(app_img)
+        """
 
     @staticmethod
     def preprocess_img(img):
@@ -102,7 +104,6 @@ class Monkey:
             return
 
         img = self.preprocess_img(img)
-        # TODO: The 'float()' here should be fixed so not needed
         img_tensor = transforms.ToTensor()(img).float()
 
         if self.use_cuda:
@@ -114,9 +115,15 @@ class Monkey:
         heat_maps = nn.functional.interpolate(heat_maps[-1], scale_factor=4)
         heat_maps = heat_maps.view(18, 256, 256)
         heat_maps = heat_maps.cpu().detach().numpy()
-        # TODO: potentially remove
+        # TODO: Neaten up
+        """
+        heat_maps[14] *= 0.7
+        heat_maps[15] *= 0.7
+        heat_maps[16] *= 0.7
+        heat_maps[17] *= 0.7
+        """
+        # TODO: potentilly remove
         #heat_maps = _zero_heat_map_edges(heat_maps)
-        #heat_maps = _remove_heats_of_1(heat_maps)
 
         # TODO: 'heatmaps' vs 'heat_maps'
         return self.pose_drawer.draw_pose_from_heatmaps(heat_maps)
@@ -201,23 +208,4 @@ def _zero_heat_map_edges(heat_map_tensor):
     heat_map_tensor[:, :, :5] = np.zeros([18, 256, 5])
     heat_map_tensor[:, -5:, :] = np.zeros([18, 5, 256])
     heat_map_tensor[:, :, -5:] = np.zeros([18, 256, 5])
-    return heat_map_tensor
-
-
-def _remove_heats_of_1(heat_map_tensor):
-    """
-    If any value of any part of a heat map has a value of
-    exactly 1.0 then it is likely that there is an error.
-    Turn these 1.0s into 0.0s.
-    This is a hack to fix that and should ideally not be permenant.
-    Args:
-        heat_map_tensor (PyTorch tensor): Of size (18, 256, 256)
-    Returns:
-        heat_map_tensor (PyTorch tensor): Of size (18, 256, 256)
-    """
-    for i in range(18):
-        for j in range(256):
-            for k in range(256):
-                if heat_map_tensor[i, j, k] == 1.0:
-                    heat_map_tensor[i, j, k] = 0.0
     return heat_map_tensor

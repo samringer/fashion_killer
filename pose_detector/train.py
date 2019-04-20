@@ -1,6 +1,6 @@
 from os.path import join
 
-from absl import flags, app
+from absl import flags, app, logging
 import torch
 from torch import nn, optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
@@ -59,7 +59,6 @@ def train(unused_argv):
     if FLAGS.load_checkpoint:
         checkpoint_state = load_checkpoint(model, optimizer, lr_scheduler)
         model, optimizer, lr_scheduler, step_num = checkpoint_state
-        print('Loaded from checkpoint {}'.format(FLAGS.load_checkpoint))
 
     for epoch in range(FLAGS.num_epochs):
 
@@ -74,11 +73,9 @@ def train(unused_argv):
                 log_results(epoch, step_num, logger, pred_heat_maps, loss)
             if step_num % FLAGS.checkpoint_interval == 0:
                 save_checkpoint(model, optimizer, lr_scheduler, step_num)
-                print('Model & optimizer checkpointed at {}'.format(save_path))
-            print(step_num, f"{loss.item():.3f}")
-            step_num += 1
-            # TODO: This is not rock solid between checkpoints
+            logging.info(step_num, f"{loss.item():.4f}")
             lr_scheduler.step(loss.item())
+            step_num += 1
 
 
 def _train_step(batch, model, optimizer):

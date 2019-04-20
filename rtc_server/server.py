@@ -70,14 +70,14 @@ class ImageTransformer:
         Used for both pose extraction and appearance transfer.
         """
         while True:
-            input_pose = None
+            input_img = None
             if self.in_img is not None:
-                input_pose = self.in_img / 256
-            self.pose_img = self.monkey.draw_pose_from_img(input_pose)
+                input_img = self.in_img / 256
+            pose_img = self.monkey.draw_pose_from_img(input_img)
 
             # WebRTC wants in range 0-256
-            if self.pose_img is not None:
-                self.pose_img *= 256
+            if pose_img is not None:
+                self.pose_img = pose_img * 256
 
     def _appearance_transer(self):
         """
@@ -87,11 +87,11 @@ class ImageTransformer:
             input_pose = None
             if self.pose_img is not None:
                 input_pose = self.pose_img / 256
-            self.app_img = self.monkey.transfer_appearance(input_pose)
+            app_img = self.monkey.transfer_appearance(input_pose)
 
             # WebRTC wants in range 0-256
-            if self.app_img is not None:
-                self.app_img *= 256
+            if app_img is not None:
+                self.app_img = app_img * 256
 
 
 # Start the threads going as soon as possible in the global scope

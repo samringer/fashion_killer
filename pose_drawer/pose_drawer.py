@@ -14,19 +14,6 @@ class Pose_Drawer():
         self.pose_settings = Pose_Settings()
         self.canvas_size = int(canvas_size)
 
-    def draw_pose_from_keypoints(self, joint_positions):
-        """
-        Args:
-            joint_positions (l of tuples): Pixel positions of each joint.
-            edge_size (int): Pixel edge size of canvas to draw image on.
-        Returns:
-            canvas (np array): np array of image with pose drawn on it.
-        """
-        canvas = np.zeros([self.canvas_size, self.canvas_size, 3])
-        canvas = self._draw_limbs(canvas, joint_positions)
-        canvas = self._draw_joints(canvas, joint_positions)
-        return canvas
-
     def draw_pose_from_heatmaps(self, heat_maps):
         """
         pose_detector model outputs a heatmap for each joint prediction.
@@ -39,6 +26,19 @@ class Pose_Drawer():
         """
         keypoints = self.extract_keypoints_from_heatmaps(heat_maps)
         return self.draw_pose_from_keypoints(keypoints)
+
+    def draw_pose_from_keypoints(self, joint_positions):
+        """
+        Args:
+            joint_positions (l of tuples): Pixel positions of each joint.
+            edge_size (int): Pixel edge size of canvas to draw image on.
+        Returns:
+            canvas (np array): np array of image with pose drawn on it.
+        """
+        canvas = np.zeros([self.canvas_size, self.canvas_size, 3])
+        canvas = self._draw_limbs(canvas, joint_positions)
+        canvas = self._draw_joints(canvas, joint_positions)
+        return canvas
 
     def extract_keypoints_from_heatmaps(self, heat_maps):
         """

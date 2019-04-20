@@ -1,8 +1,9 @@
 from os.path import join
 
-from absl import flags, app
+from absl import flags, app, logging
 import torch
 from torch import nn, optim
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 from apex import amp
 
@@ -44,16 +45,13 @@ def train(unused_argv):
         model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
 
     step_num = 0
-    lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.8)
+    lr_scheduler = ReduceLROnPlateau(optimizer, factor=0.5, patience=5000, verbose=True, min_lr=FLAGS.learning_rate/50)
 
     if FLAGS.load_checkpoint:
         checkpoint_state = load_checkpoint(model, optimizer, lr_scheduler)
         model, optimizer, lr_scheduler, step_num = checkpoint_state
-        print('Loaded from checkpoint {}'.format(FLAGS.load_checkpoint))
 
     for epoch in range(FLAGS.num_epochs):
-        # TODO: This is not rock solid between checkpoints
-        lr_scheduler.step()
 
         # Save a model at the start of each epoch
         save_path = join(models_path, '{}.pt'.format(epoch))
@@ -68,9 +66,9 @@ def train(unused_argv):
 
             if step_num % FLAGS.checkpoint_interval == 0:
                 save_checkpoint(model, optimizer, lr_scheduler, step_num)
-                print('Model & optimizer checkpointed at {}'.format(save_path))
 
-            print(step_num, f"{loss.item():.3f}")
+            logging.info(step_num, f"{loss.item():.4f}")
+            lr_scheduler.step(loss.item())
             step_num += 1
 
 

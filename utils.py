@@ -4,7 +4,7 @@ from os import mkdir
 from os.path import join, exists
 
 import numpy as np
-from absl import flags
+from absl import flags, logging
 import torch
 from tensorboardX import SummaryWriter
 
@@ -45,6 +45,8 @@ def save_checkpoint(model, optimizer, scheduler, step_num):
     with open(save_path, 'wb') as out_f:
         pickle.dump(checkpoint_state, out_f)
 
+    logging.info('Checkpointed at {}'.format(save_path))
+
 
 def load_checkpoint(model, optimizer, scheduler):
     """
@@ -57,6 +59,7 @@ def load_checkpoint(model, optimizer, scheduler):
     model.load_state_dict(model_sd)
     optimizer.load_state_dict(optimizer_sd)
     scheduler.load_state_dict(scheduler_sd)
+    logging.info('Loaded from checkpoint {}'.format(FLAGS.load_checkpoint))
     return model, optimizer, scheduler, step_num
 
 
