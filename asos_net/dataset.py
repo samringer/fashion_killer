@@ -40,31 +40,31 @@ class AsosDataset(Dataset):
 
         outfit_dir = self.outfit_dirs[index]
 
-        # Sample such that we will not use an image with it's
+        # Sample such that we will not use an appearance image with it's
         # corresponding pose.
-        orig_num, pose_num = sample(list(range(3)), 2)
+        app_num, pose_num = sample(list(range(3)), 2)
 
-        orig_path = outfit_dir / str(orig_num)
-        pose_path = (outfit_dir / str(pose_num)).with_suffix('.pose.jpg')
-        target_path = outfit_dir / str(pose_num)
+        app_path = outfit_dir/str(app_num)
+        pose_path = (outfit_dir/str(pose_num)).with_suffix('.pose.jpg')
+        target_path = outfit_dir/str(pose_num)
 
-        orig_img = cv2.imread(orig_path.as_posix())
+        app_img = cv2.imread(app_path.as_posix())
         pose_img = cv2.imread(pose_path.as_posix())
         target_img = cv2.imread(target_path.as_posix())
 
-        orig_img = cv2.cvtColor(orig_img, cv2.COLOR_BGR2RGB)
+        app_img = cv2.cvtColor(app_img, cv2.COLOR_BGR2RGB)
         pose_img = cv2.cvtColor(pose_img, cv2.COLOR_BGR2RGB)
         target_img = cv2.cvtColor(target_img, cv2.COLOR_BGR2RGB)
 
         # Note pose_img has already been preprocessed during cleaning.
-        orig_img = preprocess_img(orig_img)
+        app_img = preprocess_img(app_img)
         target_img = preprocess_img(target_img)
 
-        orig_img = transforms.ToTensor()(np.asarray(orig_img) / 256)
+        app_img = transforms.ToTensor()(np.asarray(app_img) / 256)
         pose_img = transforms.ToTensor()(np.asarray(pose_img) / 256)
         target_img = transforms.ToTensor()(np.asarray(target_img) / 256)
 
-        return {'orig_img': orig_img,
+        return {'app_img': app_img,
                 'pose_img': pose_img,
                 'target_img': target_img}
 
