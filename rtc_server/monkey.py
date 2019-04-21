@@ -33,7 +33,6 @@ class Monkey:
         if self.use_cuda:
             self.pose_model = self.pose_model.cuda()
 
-        #app_model_base_path = 'pretrained_models/v_u_net.pt'
         app_model = CachedVUNet()
         if self.app_model_base_path:
             app_model.load_state_dict(torch.load(self.app_model_base_path))
@@ -42,7 +41,7 @@ class Monkey:
             self.app_model = self.app_model.cuda()
 
         # TODO: This is temporary and should be neatened up
-        #app_img_path = 'test_imgs/test_appearance_img.jpg'
+        # app_img_path = 'test_imgs/test_appearance_img.jpg'
         app_img_path = 'test_imgs/2004_app_img.jpg'
         app_img = '/home/sam/data/deepfashion/train/07608_4.jpg'
         app_img = Image.open(app_img_path)
@@ -152,9 +151,9 @@ class Monkey:
         # heat_maps = _zero_heat_map_edges(heat_maps)
 
         joint_pos = self.pose_drawer.extract_keypoints_from_heat_maps(heat_maps)
-        app_encoder_inp = self._prep_app_encoder_inp(app_img, joint_pos)
+        app_enc_inp = self._prep_app_encoder_inp(app_img, joint_pos)
         with torch.no_grad():
-            cache = self.app_model.appearance_encoder(*app_encoder_inp)
+            cache = self.app_model.appearance_encoder(*app_enc_inp)
         self.app_vec_1, self.app_vec_2, _, _ = cache
 
     def _prep_app_encoder_inp(self, app_img, app_joint_pos):

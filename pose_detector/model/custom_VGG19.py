@@ -6,7 +6,7 @@ from torch.utils import model_zoo
 from torchvision.models.vgg import VGG, model_urls
 
 full_layer_spec = [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 256, 'M',
-					512, 512, 512, 512, 'M', 512, 512, 512, 512, 'M']
+                   512, 512, 512, 512, 'M', 512, 512, 512, 512, 'M']
 
 
 class Custom_VGG19(VGG):

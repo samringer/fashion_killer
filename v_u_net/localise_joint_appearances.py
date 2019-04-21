@@ -37,11 +37,11 @@ def get_joint_image(orig_img, centre_point, edge_size):
     Crops a box around a specific point and resizes it to be the same size
     as the original image.
     Args:
-        orig_img (np array): np array representing the image to crop of size HxWx3.
-        centre_point ((int, int)): Tuple with coordinates of centre point in pixels.
+        orig_img (np array): img to crop of size HxWx3.
+        centre_point ((int, int)): coordinates of centre point in pixels.
         edge_size (int): Size of edge of cropped box in pixels.
     Returns:
-        upsampled_joint_img (np array): Image of joint of same size as original image.
+        upsampled_joint_img (np array): Img of joint of same size as orig img.
     """
     orig_img_width, orig_img_height, _ = orig_img.shape
     joint_img = _crop_image(orig_img, centre_point, edge_size)
@@ -55,9 +55,10 @@ def get_joint_image(orig_img, centre_point, edge_size):
 def _crop_image(img, centre_point, edge_size):
     """
     Crop a box of size (edge_size x edge_size) out of an input image.
-    Image is padded with 0s to ensure that a box of correct size is always returned.
+    Image is padded with 0s.
+    This ensures that a box of correct size is always returned.
     Args:
-        img (np array): np array representing the image to crop of size HxWx3.
+        img (np array): image to crop of size HxWx3.
         centre_point ((int, int)): Tuple with coordinates of centre point in pixels.
         edge_size (int): Size of edge of cropped box in pixels.
     Returns:

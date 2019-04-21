@@ -45,7 +45,9 @@ def train(unused_argv):
         model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
 
     step_num = 0
-    lr_scheduler = ReduceLROnPlateau(optimizer, factor=0.5, patience=5000, verbose=True, min_lr=FLAGS.learning_rate/50)
+    lr_scheduler = ReduceLROnPlateau(optimizer, factor=0.5,
+                                     patience=5000, verbose=True,
+                                     min_lr=FLAGS.learning_rate/50)
 
     if FLAGS.load_checkpoint:
         checkpoint_state = load_checkpoint(model, optimizer, lr_scheduler)
@@ -59,7 +61,6 @@ def train(unused_argv):
 
         for batch in dataloader:
             gen_img, loss, l1_loss, kl_divergence = _train_step(batch, model, optimizer)
-
 
             if step_num % FLAGS.tb_log_interval == 0:
                 log_results(epoch, step_num, logger, gen_img, loss, l1_loss, kl_divergence)
@@ -109,22 +110,6 @@ def _get_KL_Divergence(app_mu_1x1, app_mu_2x2, pose_mu_1x1, pose_mu_2x2):
     kl_divergence = term_1 + term_2
     # Scaling factor is empirical
     return 1e-5 * kl_divergence
-
-
-# TODO: 
-"""
-feature_weights = [1, 1, 1, 1, 1, 1]
-def _get_VGG_loss(VGG, orig_img, gen_img):
-    orig_img_VGG_values_list = VGG(orig_img)
-    gen_img_VGG_values_list = VGG(gen_img)
-
-    total_l1_loss = 0
-    for orig_VGG_value, gen_VGG_value, weight in zip(orig_img_VGG_values_list, gen_img_VGG_values_list, feature_weights):
-        l1_loss = nn.L1Loss()(orig_VGG_value, gen_VGG_value) * weight
-        total_l1_loss += l1_loss
-
-    return total_l1_loss
-"""
 
 
 def log_results(epoch, step_num, writer, gen_img, loss, l1_loss, KL_Divergence):

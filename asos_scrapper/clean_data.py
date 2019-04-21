@@ -7,7 +7,6 @@ import cv2
 from rtc_server.monkey import Monkey
 
 
-
 def clean_asos_dir(data_dir):
     """
     Removes 'outfits' that do not contain exactly 4 images.
@@ -40,8 +39,6 @@ def clean_asos_dir(data_dir):
             pose_img *= 256
             pose_img = pose_img.astype('uint8')
             cv2.imwrite(str(img_path.with_suffix('.pose.jpg')), pose_img)
-
-
 
 
 if __name__ == "__main__":

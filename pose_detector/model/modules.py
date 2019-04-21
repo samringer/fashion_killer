@@ -3,6 +3,7 @@ from torch import nn
 num_joints = 18
 num_limbs = 17
 
+
 class LimbBlock(nn.Module):
 
     def __init__(self, in_c):
@@ -14,7 +15,7 @@ class LimbBlock(nn.Module):
         self.conv_block_5 = ConvBlock(in_c)
         self.conv_1x1a = ConvLayer(in_c, in_c, kernel_size=1, padding=0)
         self.conv_1x1b = ConvLayer(in_c, num_limbs*2,
-                                    kernel_size=1, padding=0)
+                                   kernel_size=1, padding=0)
 
     def forward(self, x):
         x = self.conv_block_1(x)

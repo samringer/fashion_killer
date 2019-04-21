@@ -74,7 +74,7 @@ class UNet(nn.Module):
         x = self.dec_block_6(x, x_3a, x_2b)
         x = self.dec_block_7(x, x_2a, x_1b)
 
-        x = torch.cat((x, x_1a), dim=1) 
+        x = torch.cat((x, x_1a), dim=1)
         x = self.dec_final_res(x)
         x = torch.cat((x, x_orig), dim=1)
         x = self.dec_final_conv(x)

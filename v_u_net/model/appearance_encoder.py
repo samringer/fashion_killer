@@ -2,6 +2,7 @@ import torch
 from torch import nn
 from v_u_net.model.modules import EncoderBlock, EncResLayer
 
+
 class AppearanceEncoder(nn.Module):
 
     def __init__(self):
@@ -17,8 +18,8 @@ class AppearanceEncoder(nn.Module):
         self.block_8 = EncoderBlock(256, 256)
         self.enc_final_res = EncResLayer(256)
 
-    def forward(self, orig_img, pose_img, localised_joints):
-        x = torch.cat((orig_img, pose_img, localised_joints), dim=1)
+    def forward(self, orig_img, pose_img, loc_joints):
+        x = torch.cat((orig_img, pose_img, loc_joints), dim=1)
         x = self.conv_1x1(x)
         _, x = self.block_1(x)
         _, x = self.block_2(x)

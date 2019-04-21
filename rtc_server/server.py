@@ -59,7 +59,7 @@ class ImageTransformer:
         """
         while True:
             self.preprocessed_img = self.monkey.preprocess_img(self.in_img)
-            # TODO: 
+            # TODO: sort out
             # WebRTC wants in range 0-256
             # if self.in_img is not None:
             #    self.preprocessed_img *= 256

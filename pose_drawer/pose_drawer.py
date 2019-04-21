@@ -56,8 +56,9 @@ class PoseDrawer():
         for heat_map in heat_maps:
             max_heat = np.amax(heat_map)
             if max_heat >= threshold:
-                keypoint = np.array(np.unravel_index(heat_map.argmax(), heat_map.shape))
-                keypoint = np.array([keypoint[1], keypoint[0]])  # Unravelling flips dims
+                # Unravelling flips dims
+                keypoint = np.unravel_index(heat_map.argmax(), heat_map.shape)
+                keypoint = np.array([keypoint[1], keypoint[0]])
             else:
                 keypoint = np.array([0, 0])
             keypoints.append(keypoint)
@@ -68,7 +69,8 @@ class PoseDrawer():
         connection_colors = self.pose_settings.connection_colors
         for connection, connection_color in zip(desired_connections, connection_colors):
             start_joint, end_joint = connection
-            start_point, end_point = joint_positions[start_joint.value], joint_positions[end_joint.value]
+            start_point = joint_positions[start_joint.value]
+            end_point =  joint_positions[end_joint.value]
             # Only draw connection if start point and end point both found.
             if all([self._point_found(point.tolist()) for point in [start_point, end_point]]):
                 canvas = draw_line_on_canvas(canvas, start_point, end_point, connection_color)
@@ -88,7 +90,7 @@ class PoseDrawer():
         Args:
             point (list): List containing keypoint coordinates of point.
         Returns:
-            found (bool): Whether the point in question was found by the pose detector.
+            found (bool): Point found by the pose detector.
         """
         return point != [0, 0] and point != [-self.canvas_size, -self.canvas_size]
 
@@ -121,8 +123,9 @@ def draw_point_on_canvas(canvas, point, color, thickness=5):
         thickness (int): Line thickness in pixels.
     Returns:
         canvas (np array): The canvas with the line drawn on it
-    """
-    color = (color[2], color[1], color[0])  # cv2 expects color in BGR format
+    """ 
+    # cv2 expects color in BGR format
+    color = (color[2], color[1], color[0])
     point = tuple(map(int, point))  # cv2 expects integers
     canvas = cv2.circle(canvas, point, thickness, color, -1) # -1 to draw a filled circle
     return canvas

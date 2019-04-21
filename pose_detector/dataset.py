@@ -44,7 +44,7 @@ class PoseDetectorDataset(Dataset):
     def __getitem__(self, index):
 
         if self.overtrain:
-            index = 0 # Use 12 for a 'good' pose
+            index = 0  # Use 12 for a 'good' pose
 
         # Perform mapping from all indices to valid indices
         valid_index = self.valid_img_indicies[index]
@@ -84,10 +84,11 @@ class PoseDetectorDataset(Dataset):
             img_data (dict): Data about things like bbox in img.
         Returns:
             out_img (np array): Cropped image of correct square size.
-            keypoint_trans_info (tuple): Info needed to correctly adjust keypoint location.
+            keypoint_trans_info (tuple):
+                Info to correctly adjust keypoint location.
         """
-        (x_0, y_0), width, height = _get_cropping_rectangle_from_img_data(img_data)
-        cropped_img = img[y_0:y_0+height, x_0:x_0+width, :]
+        (x_0, y_0), w, h = _get_cropping_rectangle_from_img_data(img_data)
+        cropped_img = img[y_0:y_0+h, x_0:x_0+w, :]
         resized_img, scale_factor = _resize_img(cropped_img, self.max_dim)
 
         height, width, _ = resized_img.shape
@@ -182,8 +183,9 @@ def _extract_keypoints_from_img_data(data):
         keypoints (l o tuples)
     """
     keypoints = data['keypoints']
-    num_keypoints = len(keypoints)//3 # As keypoints come in triplets.
-    valid_keypoints = [(keypoints[i*3], keypoints[(i*3)+1]) for i in range(num_keypoints)]
+    num_keypoints = len(keypoints)//3  # As keypoints come in triplets.
+    valid_keypoints = [(keypoints[i*3], keypoints[(i*3)+1])
+                       for i in range(num_keypoints)]
     valid_keypoints = _add_neck_keypoint(valid_keypoints)
     return valid_keypoints
 
@@ -280,7 +282,7 @@ def _adjust_keypoints(keypoints, ul_point, x_offset, y_offset, scale_factor):
     adj_keypoints = []
 
     for (x, y) in keypoints:
-        if (x, y) != (0, 0): # Only adjust the keypoint if it is found.
+        if (x, y) != (0, 0):  # Only adjust the keypoint if it is found.
             x = (x-x_0)*scale_factor
             y = (y-y_0)*scale_factor
             x = int(x+x_offset)
@@ -328,10 +330,6 @@ def _create_heat_map(keypoint, edge_size, sigma=20):
             dist_from_keypoint = (row_num-x)**2 + (col_num-y)**2
             exponent = dist_from_keypoint/(sigma**2)
             heat = math.e**(-exponent)
-
-            # The 0.9 is label smoothing.
-            # TODO: Add label smoothing back in
-            #heat = heat * 0.9
             heat_map[col_num][row_num] = heat
     return heat_map
 

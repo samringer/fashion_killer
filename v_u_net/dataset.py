@@ -13,6 +13,7 @@ from pose_drawer.pose_drawer import PoseDrawer
 
 image_edge_size = 256
 
+
 class VUNetDataset(Dataset):
     """
     Dataset consists of pairs of original and pose extracted images
@@ -89,24 +90,25 @@ def _rearrange_keypoints(keypoints):
         new_keypoints[new_pos] = keypoints[old_pos]
     return new_keypoints
 
+
 # Comments are the originals
 DEEPFASHION_COCO_MAPPING = {
-    0: 0, # nose
-    1: 1, # neck
-    2: 7, # right shoulder
-    3: 9, # right elbow
-    4: 11, # right hand
-    5: 6, # left shoulder
-    6: 8, # left elbow
-    7: 10, # left hand
-    8: 13, # right waist
-    9: 15, # right knee
-    10: 17, # right foot
-    11: 12, # left waist
-    12: 14, # left knee
-    13: 16, # left foot
-    14: 3, # right eye
-    15: 2, # left eye
-    16: 3, # right ear
-    17: 4, # left ear
+    0: 0,  # nose
+    1: 1,  # neck
+    2: 7,  # right shoulder
+    3: 9,  # right elbow
+    4: 11,  # right hand
+    5: 6,  # left shoulder
+    6: 8,  # left elbow
+    7: 10,  # left hand
+    8: 13,  # right waist
+    9: 15,  # right knee
+    10: 17 , # right foot
+    11: 12 , # left waist
+    12: 14 , # left knee
+    13: 16 , # left foot
+    14: 3,  # right eye
+    15: 2,  # left eye
+    16: 3,  # right ear
+    17: 4,  # left ear
 }

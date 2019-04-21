@@ -121,13 +121,13 @@ def get_heatmap_loss(pred_heat_maps, true_heat_maps, kp_loss_mask):
     If joint is not present in the data then the corresponding
     loss using ignored using the keypoint loss mask.
     """
-    heatmap_loss = 0
+    hm_loss = 0
     kp_loss_mask = kp_loss_mask.unsqueeze(2).unsqueeze(3)
     true_heat_maps_masked = true_heat_maps * kp_loss_mask
     for pred_heat_map in pred_heat_maps:
         pred_heat_map_masked = pred_heat_map * kp_loss_mask
-        heatmap_loss += nn.MSELoss()(pred_heat_map_masked, true_heat_maps_masked)
-    return heatmap_loss
+        hm_loss += nn.MSELoss()(pred_heat_map_masked, true_heat_maps_masked)
+    return hm_loss
 
 
 def get_part_affinity_field_loss(pred_pafs, true_pafs, paf_loss_mask):

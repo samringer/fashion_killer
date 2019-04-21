@@ -3,6 +3,7 @@ from torch import nn
 from v_u_net.model.u_net import UNet
 from v_u_net.model.appearance_encoder import AppearanceEncoder
 
+
 class VUNet(nn.Module):
     def __init__(self):
         super().__init__()

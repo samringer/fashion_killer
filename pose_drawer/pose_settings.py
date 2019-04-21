@@ -21,8 +21,10 @@ class PoseSettings():
             [255, 0, 0], [0, 85, 255], [0, 0, 255], [85, 255, 255], [170, 0, 255],
             [255, 0, 255], [255, 0, 170], [255, 0, 85]]
 
-        self.connection_colors = [[i/256 for i in j] for j in connection_colors_orig]
-        self.joint_colors = [[i/256 for i in j] for j in joint_colors_orig]
+        self.connection_colors = [[i/256 for i in j]
+                                  for j in connection_colors_orig]
+        self.joint_colors = [[i/256 for i in j]
+                             for j in joint_colors_orig]
 
         self.keypoint_from_heatmap_threshold = 0.3
 
