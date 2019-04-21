@@ -12,3 +12,4 @@ pyflakes
 pylint
 pytest
 pytest-cov
+mock

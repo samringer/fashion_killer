@@ -19,22 +19,24 @@ class Monkey:
     https://jackiechanadventures.fandom.com/wiki/Monkey_Talisman
     """
 
-    use_cuda = True
+    use_cuda = torch.cuda.is_available()
     pose_drawer = Pose_Drawer()
 
+    pose_model_base_path = 'pretrained_models/pose_detector.pt'
+    app_model_base_path = 'pretrained_models/v_u_net_150419.pt'
+
     def __init__(self):
-        pose_model_base_path = 'pretrained_models/pose_detector.pt'
         pose_model = PoseDetector()
-        pose_model.load_state_dict(torch.load(pose_model_base_path))
+        if self.pose_model_base_path:
+            pose_model.load_state_dict(torch.load(self.pose_model_base_path))
         self.pose_model = pose_model.eval()
         if self.use_cuda:
             self.pose_model = self.pose_model.cuda()
 
-        """
         #app_model_base_path = 'pretrained_models/v_u_net.pt'
-        app_model_base_path = 'pretrained_models/v_u_net_150419.pt'
         app_model = CachedVUNet()
-        app_model.load_state_dict(torch.load(app_model_base_path))
+        if self.app_model_base_path:
+            app_model.load_state_dict(torch.load(self.app_model_base_path))
         self.app_model = app_model.eval()
         if self.use_cuda:
             self.app_model = self.app_model.cuda()
@@ -47,7 +49,6 @@ class Monkey:
         app_img = np.asarray(app_img)
         app_img = app_img / 256
         self._generate_appearance_cache(app_img)
-        """
 
     @staticmethod
     def preprocess_img(img):

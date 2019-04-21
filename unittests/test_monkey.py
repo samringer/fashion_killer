@@ -1,4 +1,5 @@
 import unittest
+from mock import patch
 import pickle
 from os.path import join, realpath, dirname
 
@@ -15,6 +16,8 @@ UNITTESTS_DIRECTORY = dirname(realpath(__file__))
 
 class TestMonkey(unittest.TestCase):
 
+    @patch.object(Monkey, 'pose_model_base_path', None)
+    @patch.object(Monkey, 'app_model_base_path', None)
     def setUp(self):
         self.datadir = join(UNITTESTS_DIRECTORY, 'data/monkey')
         in_img_path = join(self.datadir, 'test_img.jpg')

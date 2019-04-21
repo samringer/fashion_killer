@@ -1,7 +1,9 @@
+import os
+
 import torch
 from torch import nn
-#from torch.utils import model_zoo
-from torchvision.models.vgg import VGG #, model_urls
+from torch.utils import model_zoo
+from torchvision.models.vgg import VGG, model_urls
 
 full_layer_spec = [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 256, 'M',
 					512, 512, 512, 512, 'M', 512, 512, 512, 512, 'M']
@@ -31,10 +33,11 @@ def get_custom_VGG19(pretrained=True, **kwargs):
         kwargs['init_weights'] = False
     model = Custom_VGG19(make_layers(full_layer_spec), **kwargs)
     if pretrained:
-        model.load_state_dict(torch.load('pretrained_models/vgg19.pt'))
-
-        # This line used when you first need to download vgg19 from the internet.
-        #model.load_state_dict(model_zoo.load_url(model_urls['vgg19']))
+        if os.path.isfile('pretrained_models/vgg19.pt'):
+            model.load_state_dict(torch.load('pretrained_models/vgg19.pt'))
+        else:
+            # Model weights not found so download from model zoo.
+            model.load_state_dict(model_zoo.load_url(model_urls['vgg19']))
     return model
 
 
