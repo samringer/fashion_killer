@@ -253,8 +253,6 @@ class Image_Processing_Unittests(unittest.TestCase):
         p_a_f = _draw_part_affinity_field(start_point, end_point, canvas)
 
         expected_path = join(self.datadir, 'test_paf.png')
-        with open(expected_path, 'wb') as in_f:
-            pickle.dump(p_a_f, in_f)
         with open(expected_path, 'rb') as in_f:
             expected_p_a_f = pickle.load(in_f)
 
