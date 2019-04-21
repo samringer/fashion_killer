@@ -64,9 +64,9 @@ class AsosDataset(Dataset):
         pose_img = transforms.ToTensor()(np.asarray(pose_img) / 256)
         target_img = transforms.ToTensor()(np.asarray(target_img) / 256)
 
-        return {'app_img': app_img,
-                'pose_img': pose_img,
-                'target_img': target_img}
+        return {'app_img': app_img.float(),
+                'pose_img': pose_img.float(),
+                'target_img': target_img.float()}
 
 
 def preprocess_img(img):

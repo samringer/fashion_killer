@@ -73,7 +73,7 @@ def train(unused_argv):
                 log_results(epoch, step_num, logger, pred_heat_maps, loss)
             if step_num % FLAGS.checkpoint_interval == 0:
                 save_checkpoint(model, optimizer, lr_scheduler, step_num)
-            logging.info(step_num, f"{loss.item():.4f}")
+            logging.info(f"{step_num} {loss.item():.4f}")
             lr_scheduler.step(loss.item())
             step_num += 1
 

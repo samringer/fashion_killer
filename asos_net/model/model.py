@@ -17,16 +17,16 @@ class AsosNet(nn.Module):
 
         # TODO: Im sure lots of model space can be saved by scaling
         # down to a smaller resolution or something
-        inp = torch.cat(app_tensor, pose_tensor)
+        inp = torch.cat([app_tensor, pose_tensor], dim=1)
         out_1 = self.block_1(inp)
 
-        x = torch.cat(out_1, inp)
+        x = torch.cat([out_1, inp], dim=1)
         out_2 = self.block_2(x)
 
-        x = torch.cat(out_2, inp)
+        x = torch.cat([out_2, inp], dim=1)
         out_3 = self.block_3(x)
 
-        x = torch.cat(out_3, inp)
+        x = torch.cat([out_3, inp], dim=1)
         out_4 = self.block_4(x)
 
         return out_1, out_2, out_3, out_4
@@ -36,7 +36,7 @@ class AsosBlock(nn.Module):
 
     def __init__(self, in_c):
         super().__init__()
-        self.conv_1x1b = ConvLayer(in_c, 32, kernel_size=1, padding=0)
+        self.conv_1x1a = ConvLayer(in_c, 32, kernel_size=1, padding=0)
         self.conv_block_1 = ConvBlock(32)
         self.conv_block_2 = ConvBlock(32)
         self.conv_block_3 = ConvBlock(32)
@@ -54,7 +54,6 @@ class AsosBlock(nn.Module):
         x = self.conv_block_5(x)
         x = self.conv_1x1b(x)
         x = self.conv_1x1c(x)
-        # TODO: Check if this helps or not
         x = nn.Sigmoid()(x)
         return x
 

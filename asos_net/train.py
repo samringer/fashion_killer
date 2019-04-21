@@ -7,7 +7,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 from apex import amp
 
-from asos_net.model import AsosNet
+from asos_net.model.u_net import UNet
 from asos_net.dataset import AsosDataset
 from utils import (save_checkpoint,
                    load_checkpoint,
@@ -31,7 +31,7 @@ def train(unused_argv):
     logger = get_tb_logger()
     set_seeds()
 
-    model = AsosNet()
+    model = UNet()
     if FLAGS.use_cuda:
         model = model.cuda()
 
@@ -68,7 +68,7 @@ def train(unused_argv):
                 log_results(epoch, step_num, logger, gen_imgs, loss)
             if step_num % FLAGS.checkpoint_interval == 0:
                 save_checkpoint(model, optimizer, lr_scheduler, step_num)
-            logging.info(step_num, f"{loss.item():.4f}")
+            logging.info(f"{step_num} {loss.item():.4f}")
             lr_scheduler.step(loss.item())
             step_num += 1
 
@@ -83,10 +83,8 @@ def _train_step(batch, model, optimizer):
         pose_img = pose_img.cuda()
         target_img = target_img.cuda()
 
-    gen_imgs = model(app_img, pose_img)
-    loss = 0
-    for gen_img in gen_imgs:
-        loss += nn.MSELoss()(gen_img, target_img)
+    gen_img = model(app_img, pose_img)
+    loss = nn.L1Loss()(gen_img, target_img)
 
     optimizer.zero_grad()
     if FLAGS.use_fp16:
@@ -96,15 +94,15 @@ def _train_step(batch, model, optimizer):
         loss.backward()
     optimizer.step()
 
-    return gen_imgs, loss
+    return gen_img, loss
 
 
-def log_results(epoch, step_num, writer, gen_imgs, loss):
+def log_results(epoch, step_num, writer, gen_img, loss):
     """
     Log the results using tensorboardx so they can be
     viewed using a tensorboard server.
     """
-    gen_img = gen_imgs[-1].permute(1, 2, 0).cpu().detach().numpy()
+    gen_img = gen_img[0].detach().cpu()
     img_file_name = 'generated_img/{}'.format(epoch)
     writer.add_image(img_file_name, gen_img, step_num)
     writer.add_scalar('Train/loss', loss, step_num)
