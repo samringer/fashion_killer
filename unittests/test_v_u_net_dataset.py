@@ -45,12 +45,12 @@ class ImageProcessingTester(unittest.TestCase):
         self.dataset = VUNetDataset(root_data_dir=self.datadir)
 
     def test_generate_pose_img(self):
-        from pose_drawer.pose_drawer import Pose_Drawer
+        from pose_drawer.pose_drawer import PoseDrawer
 
         joint_raw_pos = self.dataset.data['joints'][0]
         joint_raw_pos = _rearrange_keypoints(joint_raw_pos)
         joint_pixel_pos = (joint_raw_pos*256).astype('int')
-        pose_img = Pose_Drawer().draw_pose_from_keypoints(joint_pixel_pos)
+        pose_img = PoseDrawer().draw_pose_from_keypoints(joint_pixel_pos)
 
         # Need a small adjustment to account for cv2
         # saving things a bit wierdly.

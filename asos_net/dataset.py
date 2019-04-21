@@ -3,7 +3,6 @@ from random import sample
 
 import cv2
 import numpy as np
-import torch
 from torchvision import transforms
 from torch.utils.data import Dataset
 

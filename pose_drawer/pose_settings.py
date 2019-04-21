@@ -1,7 +1,7 @@
 from enum import IntEnum
 
 
-class Pose_Settings():
+class PoseSettings():
     """
     Defines which connections/joints should appear in pose image
     and what color they should be.

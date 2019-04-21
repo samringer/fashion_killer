@@ -11,7 +11,8 @@ class EncoderBlock(nn.Module):
     def __init__(self, in_c, out_c):
         super().__init__()
         self.res_block = EncResLayer(in_c)
-        self.conv = nn.Conv2d(in_c, out_c, 3, stride=2, padding=1) # Performs downsampling
+        # Performs downsampling
+        self.conv = nn.Conv2d(in_c, out_c, 3, stride=2, padding=1)
 
     def forward(self, x):
         x_1 = self.res_block(x)
@@ -29,7 +30,7 @@ class DecoderBlock(nn.Module):
         x = torch.cat((x, skip_con_1), dim=1)
         x = self.res_layer(x)
         x = torch.cat((x, skip_con_2), dim=1)
-        x = nn.functional.interpolate(x, scale_factor=2) # Performs upsampling
+        x = nn.functional.interpolate(x, scale_factor=2)
         x = self.conv(x)
         return x
 

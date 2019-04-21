@@ -9,7 +9,7 @@ from torch.utils.data import Dataset
 
 import v_u_net.hyperparams as hp
 from v_u_net.localise_joint_appearances import get_localised_joints
-from pose_drawer.pose_drawer import Pose_Drawer
+from pose_drawer.pose_drawer import PoseDrawer
 
 image_edge_size = 256
 
@@ -33,7 +33,7 @@ class VUNetDataset(Dataset):
             self.data = pickle.load(in_f)
 
         self.joints_to_localise = [joint.value for joint in hp.joints_to_localise]
-        self.pose_drawer = Pose_Drawer()
+        self.pose_drawer = PoseDrawer()
 
     def __len__(self):
         return len(self.data['imgs'])

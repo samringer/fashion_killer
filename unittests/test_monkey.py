@@ -74,7 +74,7 @@ class TestMonkey(unittest.TestCase):
         heat_maps = heat_maps.view(18, 256, 256)
         heat_maps = heat_maps.detach().numpy()
 
-        joint_pos = self.monkey.pose_drawer.extract_keypoints_from_heatmaps(heat_maps)
+        joint_pos = self.monkey.pose_drawer.extract_keypoints_from_heat_maps(heat_maps)
 
         output = self.monkey._prep_app_encoder_inp(self.in_img, joint_pos)
 

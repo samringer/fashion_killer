@@ -10,7 +10,7 @@ from torchvision import transforms
 from torch.utils.data import Dataset
 from PIL import Image, ImageDraw
 
-from pose_drawer.pose_settings import Pose_Settings
+from pose_drawer.pose_settings import PoseSettings
 
 
 class PoseDetectorDataset(Dataset):
@@ -30,7 +30,7 @@ class PoseDetectorDataset(Dataset):
         self.min_joints_to_train_on = min_joints_to_train_on
 
         # Needed for drawing the Part Affinity Fields.
-        self.pose_settings = Pose_Settings()
+        self.pose_settings = PoseSettings()
 
         with open(str(keypoints_path), 'r') as in_f:
             self.imgs_data = json.load(in_f)['annotations']

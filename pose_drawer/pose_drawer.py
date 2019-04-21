@@ -1,20 +1,20 @@
 import cv2
 import numpy as np
 
-from pose_drawer.pose_settings import Pose_Settings
+from pose_drawer.pose_settings import PoseSettings
 
 
-class Pose_Drawer():
+class PoseDrawer():
 
     def __init__(self, canvas_size=256):
         """
         Args:
             canvas_size (int): Size of canvas edge in pixels.
         """
-        self.pose_settings = Pose_Settings()
+        self.pose_settings = PoseSettings()
         self.canvas_size = int(canvas_size)
 
-    def draw_pose_from_heatmaps(self, heat_maps):
+    def draw_pose_from_heat_maps(self, heat_maps):
         """
         pose_detector model outputs a heatmap for each joint prediction.
         This method draws a pose from these heatmaps.
@@ -24,7 +24,7 @@ class Pose_Drawer():
         Returns:
             canvas (np array): np array of image with pose drawn on it.
         """
-        keypoints = self.extract_keypoints_from_heatmaps(heat_maps)
+        keypoints = self.extract_keypoints_from_heat_maps(heat_maps)
         return self.draw_pose_from_keypoints(keypoints)
 
     def draw_pose_from_keypoints(self, joint_positions):
@@ -40,7 +40,7 @@ class Pose_Drawer():
         canvas = self._draw_joints(canvas, joint_positions)
         return canvas
 
-    def extract_keypoints_from_heatmaps(self, heat_maps):
+    def extract_keypoints_from_heat_maps(self, heat_maps):
         """
         pose_detector model outputs a heatmap for each joint prediction.
         This method extracts the keypoints from these heatmaps.

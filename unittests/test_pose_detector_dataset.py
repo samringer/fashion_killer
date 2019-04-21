@@ -104,13 +104,13 @@ class Dataset_Unittester(unittest.TestCase):
         ul_point, x_offset, y_offset, scale_factor = (10, 10), 50, 0, 0.5
         adj_keypoints = _adjust_keypoints(original_keypoints, ul_point,
                                           x_offset, y_offset, scale_factor)
-        non_null_adj_keypoints = [point for point in adj_keypoints if point != (0, 0)]
+        non_null_adj_kps = [point for point in adj_keypoints if point != (0, 0)]
 
         ground_truth_path = join(self.datadir, 'adjusted_keypoints.pkl')
         with open(ground_truth_path, 'rb') as in_f:
             ground_truth = pickle.load(in_f)
 
-        self.assertEqual(non_null_adj_keypoints, ground_truth)
+        self.assertEqual(non_null_adj_kps, ground_truth)
 
     def test_get_kp_loss_mask(self):
         """
@@ -118,12 +118,14 @@ class Dataset_Unittester(unittest.TestCase):
         masked during training. Test the loss mask is produced correctly.
         """
         from pose_detector.dataset import (_get_kp_loss_mask,
-                                          _extract_keypoints_from_img_data)
+                                           _extract_keypoints_from_img_data)
         img_data = self.dataset.imgs_data[0]
         keypoints = _extract_keypoints_from_img_data(img_data)
 
         kp_loss_mask = _get_kp_loss_mask(keypoints)
-        desired_kp_loss_mask = [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0]
+        desired_kp_loss_mask = \
+            [1, 1, 1, 1, 1, 1, 1, 1, 0,
+             1, 0, 1, 1, 1, 1, 1, 0, 0]
 
         self.assertEqual(kp_loss_mask.tolist(), desired_kp_loss_mask)
 
@@ -184,10 +186,10 @@ class Image_Processing_Unittests(unittest.TestCase):
 
         test_img_data = self.imgs_data[0]
 
-        cropping_rectangle = _get_cropping_rectangle_from_img_data(test_img_data)
+        crop_rectangle = _get_cropping_rectangle_from_img_data(test_img_data)
         desired = ((143, 22), 155, 400)
 
-        self.assertEqual(cropping_rectangle, desired)
+        self.assertEqual(crop_rectangle, desired)
 
     def test_resize_img(self):
         """

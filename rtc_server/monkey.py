@@ -8,7 +8,7 @@ from torchvision import transforms
 
 from pose_detector.model.model import PoseDetector
 from v_u_net.model.v_u_net import CachedVUNet
-from pose_drawer.pose_drawer import Pose_Drawer
+from pose_drawer.pose_drawer import PoseDrawer
 import v_u_net.hyperparams as hp
 from v_u_net.localise_joint_appearances import get_localised_joints
 
@@ -20,7 +20,7 @@ class Monkey:
     """
 
     use_cuda = torch.cuda.is_available()
-    pose_drawer = Pose_Drawer()
+    pose_drawer = PoseDrawer()
 
     pose_model_base_path = 'pretrained_models/pose_detector.pt'
     app_model_base_path = 'pretrained_models/v_u_net_150419.pt'
@@ -124,10 +124,9 @@ class Monkey:
         heat_maps[17] *= 0.7
         """
         # TODO: potentilly remove
-        #heat_maps = _zero_heat_map_edges(heat_maps)
+        # heat_maps = _zero_heat_map_edges(heat_maps)
 
-        # TODO: 'heatmaps' vs 'heat_maps'
-        return self.pose_drawer.draw_pose_from_heatmaps(heat_maps)
+        return self.pose_drawer.draw_pose_from_heat_maps(heat_maps)
 
     def _generate_appearance_cache(self, app_img):
         """
@@ -149,9 +148,10 @@ class Monkey:
         heat_maps = nn.functional.interpolate(heat_maps[-1], scale_factor=4)
         heat_maps = heat_maps.view(18, 256, 256)
         heat_maps = heat_maps.cpu().detach().numpy()
-        #heat_maps = _zero_heat_map_edges(heat_maps)
+        # TODO:
+        # heat_maps = _zero_heat_map_edges(heat_maps)
 
-        joint_pos = self.pose_drawer.extract_keypoints_from_heatmaps(heat_maps)
+        joint_pos = self.pose_drawer.extract_keypoints_from_heat_maps(heat_maps)
         app_encoder_inp = self._prep_app_encoder_inp(app_img, joint_pos)
         with torch.no_grad():
             cache = self.app_model.appearance_encoder(*app_encoder_inp)

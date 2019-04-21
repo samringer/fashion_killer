@@ -9,14 +9,14 @@ from apex import amp
 
 from pose_detector.model.model import PoseDetector
 from pose_detector.dataset import PoseDetectorDataset
-from pose_drawer.pose_drawer import Pose_Drawer
+from pose_drawer.pose_drawer import PoseDrawer
 from utils import (save_checkpoint,
                    load_checkpoint,
                    prepare_experiment_dirs,
                    get_tb_logger,
                    set_seeds)
 
-POSE_DRAWER = Pose_Drawer()
+POSE_DRAWER = PoseDrawer()
 
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('min_joints_to_train_on', 10,
