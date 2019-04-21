@@ -4,6 +4,6 @@ result.png
 Workspace_Old.ipynb
 SandBox.ipynb
 .pytest_cache/
-*.pkl
 *.ipynb
 pretrained_models/
+test_imgs/
