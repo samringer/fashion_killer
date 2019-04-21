@@ -6,4 +6,3 @@ SandBox.ipynb
 .pytest_cache/
 *.ipynb
 pretrained_models/
-test_imgs/
