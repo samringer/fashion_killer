@@ -10,8 +10,11 @@ exp_name=$(date +"%d_%m")_${experiment}
 EXP_DIR=/home/sam/experiments/Pose_Detector/${exp_name}
 
 mkdir -p $EXP_DIR
+mkdir -p ${EXP_DIR}/code
 
-rsync --quiet -avhz asos_net/* ${EXP_DIR}/code
+rsync --quiet -avhz pose_detector ${EXP_DIR}/code/pose_detector
+rsync --quiet -avhz pose_drawer ${EXP_DIR}/code/pose_drawer
+rsync --quiet -avhz utils.py ${EXP_DIR}/code/
 rsync --quiet -avhz train_pose_detector.sh ${EXP_DIR}/code/
 
 python -m pose_detector.train \

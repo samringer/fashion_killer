@@ -1,8 +1,6 @@
 import numpy as np
 from skimage.transform import resize
 
-import v_u_net.hyperparams as hp
-
 
 def get_localised_joints(img, joints_to_localise, joint_positions):
     """
@@ -57,7 +55,7 @@ def _crop_image(img, centre_point, edge_size):
     Crop a box of size (edge_size x edge_size) out of an input image.
     Image is padded with 0s.
     This ensures that a box of correct size is always returned.
-    Args:
+    Args OpenPose:
         img (np array): image to crop of size HxWx3.
         centre_point ((int, int)): Tuple with coordinates of centre point in pixels.
         edge_size (int): Size of edge of cropped box in pixels.
@@ -79,11 +77,10 @@ def _crop_image(img, centre_point, edge_size):
 
 def _point_found(point):
     """
-    OpenPose returns [-1, -1] or [0, 0] if point not found.
+    Point has position [0, 0] if point not found.
     Args:
-        point (list): List containing OpenPose coordinates of point
+        point (list): List containing coordinates of point.
     Returns:
-        found (bool): Whether the point in question was found by OpenPose
+        found (bool): Whether the point in question was found by.
     """
-    return point not in ([-hp.image_edge_size, -hp.image_edge_size],
-                         [0, 0])
+    return point != [0, 0]
