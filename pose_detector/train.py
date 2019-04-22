@@ -98,8 +98,8 @@ def _train_step(batch, model, optimizer):
     true_heat_maps = nn.MaxPool2d(4)(true_heat_maps)
     true_pafs = nn.MaxPool2d(4)(true_pafs)
 
-    hm_loss = get_heatmap_loss(pred_heat_maps, true_heat_maps,
-                               kp_loss_mask)
+    hm_loss = get_heat_map_loss(pred_heat_maps, true_heat_maps,
+                                kp_loss_mask)
     paf_loss = get_part_affinity_field_loss(pred_pafs, true_pafs,
                                             paf_loss_mask)
     loss = hm_loss + paf_loss
@@ -115,9 +115,9 @@ def _train_step(batch, model, optimizer):
     return pred_pafs, pred_heat_maps, loss
 
 
-def get_heatmap_loss(pred_heat_maps, true_heat_maps, kp_loss_mask):
+def get_heat_map_loss(pred_heat_maps, true_heat_maps, kp_loss_mask):
     """
-    Get MSE loss between true heatmap and pred heatmap.
+    Get MSE loss between true heat map and pred heat map.
     If joint is not present in the data then the corresponding
     loss using ignored using the keypoint loss mask.
     """
@@ -154,7 +154,7 @@ def log_results(epoch, step_num, writer, pred_heat_maps, loss):
     # Interpolate up to make img a decent size.
     heat_maps = nn.functional.interpolate(pred_heat_maps[-1], scale_factor=4)
     heat_maps = heat_maps[0].cpu().detach().numpy()
-    pose_img = POSE_DRAWER.draw_pose_from_heatmaps(heat_maps)
+    pose_img = POSE_DRAWER.draw_pose_from_heat_maps(heat_maps)
     pose_img = torch.Tensor(pose_img).permute(2, 0, 1)
     img_file_name = 'generated_pose/{}'.format(epoch)
     writer.add_image(img_file_name, pose_img, step_num)

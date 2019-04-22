@@ -52,7 +52,8 @@ class AsosDataset(Dataset):
         target_img = cv2.imread(target_path.as_posix())
 
         app_img = cv2.cvtColor(app_img, cv2.COLOR_BGR2RGB)
-        pose_img = cv2.cvtColor(pose_img, cv2.COLOR_BGR2RGB)
+        # TODO: Is this needed for the pose?
+        # pose_img = cv2.cvtColor(pose_img, cv2.COLOR_BGR2RGB)
         target_img = cv2.cvtColor(target_img, cv2.COLOR_BGR2RGB)
 
         # Note pose_img has already been preprocessed during cleaning.

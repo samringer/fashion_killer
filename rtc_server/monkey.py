@@ -8,6 +8,7 @@ from torchvision import transforms
 
 from pose_detector.model.model import PoseDetector
 from v_u_net.model.v_u_net import CachedVUNet
+from asos_net.model.u_net import UNet
 from pose_drawer.pose_drawer import PoseDrawer
 import v_u_net.hyperparams as hp
 from v_u_net.localise_joint_appearances import get_localised_joints
@@ -23,7 +24,8 @@ class Monkey:
     pose_drawer = PoseDrawer()
 
     pose_model_base_path = 'pretrained_models/pose_detector.pt'
-    app_model_base_path = 'pretrained_models/v_u_net_150419.pt'
+    app_model_base_path = 'pretrained_models/2204_asosnet.pt'
+    app_img_path = 'test_imgs/2204_asos.jpg'
 
     def __init__(self):
         pose_model = PoseDetector()
@@ -33,7 +35,8 @@ class Monkey:
         if self.use_cuda:
             self.pose_model = self.pose_model.cuda()
 
-        app_model = CachedVUNet()
+        #app_model = CachedVUNet()
+        app_model = UNet()
         if self.app_model_base_path:
             app_model.load_state_dict(torch.load(self.app_model_base_path))
         self.app_model = app_model.eval()
@@ -42,12 +45,18 @@ class Monkey:
 
         # TODO: This is temporary and should be neatened up
         # app_img_path = 'test_imgs/test_appearance_img.jpg'
-        app_img_path = 'test_imgs/2004_app_img.jpg'
-        app_img = '/home/sam/data/deepfashion/train/07608_4.jpg'
-        app_img = Image.open(app_img_path)
-        app_img = np.asarray(app_img)
-        app_img = app_img / 256
-        self._generate_appearance_cache(app_img)
+        app_img = cv2.imread(self.app_img_path)
+        app_img = cv2.cvtColor(app_img, cv2.COLOR_BGR2RGB)
+        app_img = self.preprocess_img(app_img)
+        app_img = np.asarray(app_img) / 256
+        # TODO: There is lots of replication in here thats in other methods
+        # TODO: Work so this float is not needed
+        app_tensor = transforms.ToTensor()(app_img).float()
+        self.app_tensor = app_tensor.view(1, 3, 256, 256)
+
+        if self.use_cuda:
+            self.app_tensor = self.app_tensor.cuda()
+        #self._generate_appearance_cache(app_img)
 
     @staticmethod
     def preprocess_img(img):
@@ -73,7 +82,7 @@ class Monkey:
 
     def transfer_appearance(self, pose_img):
         """
-        This is the full shapeshift
+        This is the full shapeshift.
         Args:
             pose_img (np array): The pose to transfer to
         """
@@ -81,13 +90,13 @@ class Monkey:
             return
 
         # TODO: Remove this float
-        pose_img = transforms.ToTensor()(pose_img).float()
-        pose_img = pose_img.unsqueeze(0)
+        pose_tensor = transforms.ToTensor()(pose_img).float()
+        pose_tensor = pose_tensor.unsqueeze(0)
         if self.use_cuda:
-            pose_img = pose_img.cuda()
+            pose_tensor = pose_tensor.cuda()
 
         with torch.no_grad():
-            gen_img = self.app_model(pose_img, self.app_vec_1, self.app_vec_2)
+            gen_img = self.app_model(self.app_tensor, pose_tensor)
 
         gen_img = gen_img.squeeze(0).permute(1, 2, 0)
         gen_img = gen_img.detach().cpu().numpy()
