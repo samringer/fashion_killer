@@ -18,6 +18,8 @@ rsync --quiet -avhz utils.py ${EXP_DIR}/code/
 rsync --quiet -avhz train_pose_detector.sh ${EXP_DIR}/code/
 
 python -m pose_detector.train \
+    --task_path='/home/sam/experiments/Pose_Detector' \
+    --data_dir='/home/sam/data/COCO' \
     --exp_name=$exp_name \
     --batch_size=4 \
     --learning_rate=$learning_rate \

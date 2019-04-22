@@ -27,7 +27,11 @@ flags.DEFINE_integer('tb_log_interval', 30,
 # Training params
 flags.DEFINE_float('learning_rate', 1e-4, "Starting learning rate")
 flags.DEFINE_integer('batch_size', 4, "Batch size to use when training")
-flags.DEFINE_integer('num_epochs', 10, "Number of training epochs")
+flags.DEFINE_integer('num_epochs', 50, "Number of training epochs")
+
+flags.mark_flag_as_required('task_path')
+flags.mark_flag_as_required('exp_name')
+flags.mark_flag_as_required('data_dir')
 
 
 def save_checkpoint(model, optimizer, scheduler, step_num):

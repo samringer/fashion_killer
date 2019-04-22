@@ -18,9 +18,6 @@ from utils import (save_checkpoint,
 
 FLAGS = flags.FLAGS
 
-FLAGS.task_path = '/home/sam/experiments/AsosNet'
-FLAGS.data_dir = '/home/sam/data/asos/train_clean'
-
 
 def train(unused_argv):
     """

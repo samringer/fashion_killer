@@ -15,6 +15,8 @@ rsync --quiet -avhz asos_net/* ${EXP_DIR}/code
 rsync --quiet -avhz train_asos_net.sh ${EXP_DIR}/code/
 
 python -m asos_net.train \
+    --task_path='/home/sam/experiments/AsosNet' \
+    --data_dir='/home/sam/data/asos/train_clean' \
     --exp_name=$exp_name \
     --batch_size=8 \
     --learning_rate=$learning_rate \

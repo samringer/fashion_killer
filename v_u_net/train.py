@@ -16,10 +16,6 @@ from utils import (save_checkpoint,
                    set_seeds)
 
 FLAGS = flags.FLAGS
-FLAGS.task_path = '/home/sam/experiments/V_U_Net'
-FLAGS.data_dir = '/home/sam/data/deepfashion'
-FLAGS.batch_size = 8
-FLAGS.num_epochs = 30
 
 
 def train(unused_argv):

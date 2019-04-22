@@ -23,9 +23,6 @@ flags.DEFINE_integer('min_joints_to_train_on', 10,
                      "The minimum num of joints an image should \
                       contain to be used as training data")
 
-FLAGS.task_path = '/home/sam/experiments/Pose_Detector'
-FLAGS.data_dir = '/home/sam/data/COCO'
-
 
 def train(unused_argv):
     """
