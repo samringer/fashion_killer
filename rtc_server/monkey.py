@@ -1,5 +1,4 @@
 import cv2
-from PIL import Image
 import numpy as np
 
 import torch
@@ -7,7 +6,7 @@ from torch import nn
 from torchvision import transforms
 
 from pose_detector.model.model import PoseDetector
-from v_u_net.model.v_u_net import CachedVUNet
+ #from v_u_net.model.v_u_net import CachedVUNet
 from asos_net.model.u_net import UNet
 from pose_drawer.pose_drawer import PoseDrawer
 import v_u_net.hyperparams as hp
@@ -35,7 +34,7 @@ class Monkey:
         if self.use_cuda:
             self.pose_model = self.pose_model.cuda()
 
-        #app_model = CachedVUNet()
+         #app_model = CachedVUNet()
         app_model = UNet()
         if self.app_model_base_path:
             app_model.load_state_dict(torch.load(self.app_model_base_path))
@@ -56,7 +55,7 @@ class Monkey:
 
         if self.use_cuda:
             self.app_tensor = self.app_tensor.cuda()
-        #self._generate_appearance_cache(app_img)
+         #self._generate_appearance_cache(app_img)
 
     @staticmethod
     def preprocess_img(img):

@@ -56,10 +56,10 @@ def train(unused_argv):
         torch.save(model.state_dict(), save_path)
 
         for batch in dataloader:
-            gen_img, loss, l1_loss, kl_divergence = _train_step(batch, model, optimizer)
+            gen_img, loss, kl_div = _train_step(batch, model, optimizer)
 
             if step_num % FLAGS.tb_log_interval == 0:
-                log_results(epoch, step_num, logger, gen_img, loss, l1_loss, kl_divergence)
+                log_results(epoch, step_num, logger, gen_img, loss, kl_div)
 
             if step_num % FLAGS.checkpoint_interval == 0:
                 save_checkpoint(model, optimizer, lr_scheduler, step_num)
@@ -97,7 +97,7 @@ def _train_step(batch, model, optimizer):
         loss.backward()
     optimizer.step()
 
-    return gen_img[0], loss, l1_loss, kl_divergence
+    return gen_img[0], loss, kl_divergence
 
 
 def _get_KL_Divergence(app_mu_1x1, app_mu_2x2, pose_mu_1x1, pose_mu_2x2):
@@ -108,7 +108,7 @@ def _get_KL_Divergence(app_mu_1x1, app_mu_2x2, pose_mu_1x1, pose_mu_2x2):
     return 1e-5 * kl_divergence
 
 
-def log_results(epoch, step_num, writer, gen_img, loss, l1_loss, KL_Divergence):
+def log_results(epoch, step_num, writer, gen_img, loss, KL_Divergence):
 
     img_file_name = 'generated_images/{}'.format(epoch)
     writer.add_image(img_file_name, gen_img, step_num)

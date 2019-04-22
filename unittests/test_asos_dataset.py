@@ -1,10 +1,7 @@
 import unittest
 from os.path import join, dirname, realpath
-import numpy as np
 
-import cv2
 import torch
-from PIL import Image
 
 from asos_net.dataset import AsosDataset
 

@@ -1,6 +1,7 @@
 from torch.utils import model_zoo
 from torchvision.models.vgg import VGG, make_layers, cfg, model_urls
 
+
 class CustomVGG19(VGG):
     """
     A VGG model that has been altered to
@@ -18,6 +19,7 @@ class CustomVGG19(VGG):
             if i in self.loss_layers:
                 loss_layers.append(x)
         return loss_layers
+
 
 def get_custom_VGG19(pretrained=True, **kwargs):
     """VGG 19-layer model (configuration "E")

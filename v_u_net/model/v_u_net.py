@@ -10,9 +10,9 @@ class VUNet(nn.Module):
         self.appearance_encoder = AppearanceEncoder()
         self.u_net = UNet()
 
-    def forward(self, orig_img, orig_pose_img, target_pose_img, localised_joints):
+    def forward(self, orig_img, orig_pose_img, target_pose_img, loc_joints):
         appearance = self.appearance_encoder(orig_img, orig_pose_img,
-                                             localised_joints)
+                                             loc_joints)
         app_vec_1x1, app_vec_2x2, app_mu_1x1, app_mu_2x2 = appearance
         gen_img, pose_mu_1x1, pose_mu_2x2 = self.u_net(target_pose_img,
                                                        app_vec_1x1,
