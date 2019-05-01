@@ -1,4 +1,5 @@
 import unittest
+from unittest import skip
 from mock import patch
 import pickle
 from os.path import join, realpath, dirname
@@ -56,6 +57,7 @@ class TestMonkey(unittest.TestCase):
         appearance_img = self.monkey.transfer_appearance(pose_img)
         self.assertEqual(appearance_img.shape, (256, 256, 3))
 
+    @skip
     def test_prep_app_encoder_inp(self):
         """
         As part of preparing the cache when doing appearance transfer,

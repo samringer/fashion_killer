@@ -114,7 +114,6 @@ def log_results(epoch, step_num, writer, gen_img, loss, KL_Divergence):
     writer.add_image(img_file_name, gen_img, step_num)
 
     writer.add_scalar('Train/loss', loss, step_num)
-    writer.add_scalar('Train/l1_loss', l1_loss, step_num)
     writer.add_scalar('Train/KL_Divergence', KL_Divergence, step_num)
 
 

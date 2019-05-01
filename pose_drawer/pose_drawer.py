@@ -37,7 +37,6 @@ class PoseDrawer():
         """
         canvas = np.zeros([self.canvas_size, self.canvas_size, 3])
         canvas = self._draw_limbs(canvas, joint_positions)
-        canvas = self._draw_joints(canvas, joint_positions)
         return canvas
 
     def extract_keypoints_from_heat_maps(self, heat_maps):
@@ -67,21 +66,21 @@ class PoseDrawer():
     def _draw_limbs(self, canvas, joint_positions):
         desired_connections = self.pose_settings.desired_connections
         connection_colors = self.pose_settings.connection_colors
+        joint_colors = self.pose_settings.joint_colors
         for connection, connection_color in zip(desired_connections, connection_colors):
             start_joint, end_joint = connection
             start_point = joint_positions[start_joint.value]
-            end_point =  joint_positions[end_joint.value]
+            end_point = joint_positions[end_joint.value]
             # Only draw connection if start point and end point both found.
             if all([self._point_found(point.tolist()) for point in [start_point, end_point]]):
                 canvas = draw_line_on_canvas(canvas, start_point, end_point, connection_color)
-        return canvas
 
-    def _draw_joints(self, canvas, joint_positions):
-        joint_colors = self.pose_settings.joint_colors
-        for joint_position, joint_color in zip(joint_positions, joint_colors):
-            # Only draw joint if joint found by OpenPose
-            if self._point_found(joint_position.tolist()):
-                canvas = draw_point_on_canvas(canvas, joint_position, joint_color)
+                # Also only draw the joints if they are connected to a limb.
+                # This stops the drawing of any isolated dots.
+                start_joint_color = joint_colors[start_joint.value]
+                end_joint_color = joint_colors[end_joint.value]
+                canvas = draw_point_on_canvas(canvas, start_point.tolist(), start_joint_color)
+                canvas = draw_point_on_canvas(canvas, end_point.tolist(), end_joint_color)
         return canvas
 
     def _point_found(self, point):
@@ -92,7 +91,7 @@ class PoseDrawer():
         Returns:
             found (bool): Point found by the pose detector.
         """
-        return point != [0, 0] and point != [-self.canvas_size, -self.canvas_size]
+        return point != [0, 0]
 
 
 def draw_line_on_canvas(canvas, start_point, end_point, color, thickness=3):

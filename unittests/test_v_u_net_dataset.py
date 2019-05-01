@@ -72,16 +72,13 @@ class ImageProcessingTester(unittest.TestCase):
         img = Image.open(img_path)
         img = np.asarray(img)
 
-        joints_to_localise = self.dataset.joints_to_localise
         joint_raw_pos = self.dataset.data['joints'][0]
         joint_raw_pos = _rearrange_keypoints(joint_raw_pos)
         joint_pixel_pos = (joint_raw_pos*256).astype('int')
 
-        localised_joints = get_localised_joints(img,
-                                                joints_to_localise,
-                                                joint_pixel_pos)
+        localised_joints = get_localised_joints(img, joint_pixel_pos)
 
-        self.assertEqual(len(localised_joints), len(joints_to_localise))
+        self.assertEqual(len(localised_joints), 7)
         for localised_joint in localised_joints:
             self.assertEqual(localised_joint.shape, (256, 256, 3))
 

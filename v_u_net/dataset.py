@@ -12,16 +12,6 @@ from pose_drawer.pose_drawer import PoseDrawer
 
 image_edge_size = 256
 
-# Which joints we want to localise and feed into appearance encoder
-from pose_drawer.pose_settings import JointType
-joints_to_localise = [JointType.Nose,
-                      JointType.RightShoulder,
-                      JointType.LeftShoulder,
-                      JointType.RightElbow,
-                      JointType.LeftElbow,
-                      JointType.RightHand,
-                      JointType.LeftHand]
-
 
 class VUNetDataset(Dataset):
     """
@@ -42,7 +32,6 @@ class VUNetDataset(Dataset):
         with open(str(index_path), 'rb') as in_f:
             self.data = pickle.load(in_f)
 
-        self.joints_to_localise = [joint.value for joint in joints_to_localise]
         self.pose_drawer = PoseDrawer()
 
     def __len__(self):
@@ -79,9 +68,7 @@ class VUNetDataset(Dataset):
         joint_pixel_pos = (joint_raw_pos*image_edge_size).astype('int')
 
         pose_img = self.pose_drawer.draw_pose_from_keypoints(joint_pixel_pos)
-        localised_joints = get_localised_joints(orig_img,
-                                                self.joints_to_localise,
-                                                joint_pixel_pos)
+        localised_joints = get_localised_joints(orig_img, joint_pixel_pos)
 
         return orig_img, pose_img, localised_joints
 

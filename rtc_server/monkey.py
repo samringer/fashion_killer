@@ -9,7 +9,6 @@ from pose_detector.model.model import PoseDetector
  #from v_u_net.model.v_u_net import CachedVUNet
 from asos_net.model.u_net import UNet
 from pose_drawer.pose_drawer import PoseDrawer
-import v_u_net.hyperparams as hp
 from v_u_net.localise_joint_appearances import get_localised_joints
 
 
@@ -23,7 +22,7 @@ class Monkey:
     pose_drawer = PoseDrawer()
 
     pose_model_base_path = 'pretrained_models/pose_detector.pt'
-    app_model_base_path = 'pretrained_models/2204_asosnet.pt'
+    app_model_base_path = 'pretrained_models/27_04_asosnet.pt'
     app_img_path = 'test_imgs/2204_asos.jpg'
 
     def __init__(self):
@@ -118,18 +117,16 @@ class Monkey:
             img_tensor = img_tensor.cuda()
 
         with torch.no_grad():
-            _, heat_maps = self.pose_model(img_tensor.view(1, 3, 256, 256))
+            pafs, heat_maps = self.pose_model(img_tensor.view(1, 3, 256, 256))
 
         heat_maps = nn.functional.interpolate(heat_maps[-1], scale_factor=4)
         heat_maps = heat_maps.view(18, 256, 256)
         heat_maps = heat_maps.cpu().detach().numpy()
         # TODO: Neaten up
-        """
-        heat_maps[14] *= 0.7
-        heat_maps[15] *= 0.7
-        heat_maps[16] *= 0.7
-        heat_maps[17] *= 0.7
-        """
+        heat_maps[14] *= 0.8
+        heat_maps[15] *= 0.8
+        heat_maps[16] *= 0.8
+        heat_maps[17] *= 0.8
         # TODO: potentilly remove
         # heat_maps = _zero_heat_map_edges(heat_maps)
 
@@ -173,9 +170,7 @@ class Monkey:
             localised_joints (PyTorch tensor): Zomed imgs of appearance
                                                img joints.
         """
-        localised_joints = get_localised_joints(app_img,
-                                                hp.joints_to_localise,
-                                                app_joint_pos)
+        localised_joints = get_localised_joints(app_img, app_joint_pos)
 
         app_img_pose = self.pose_drawer.draw_pose_from_keypoints(app_joint_pos)
         # TODO: Remove these floats here

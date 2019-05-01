@@ -1,8 +1,19 @@
 import numpy as np
 from skimage.transform import resize
 
+# Which joints we want to localise and feed into appearance encoder
+from pose_drawer.pose_settings import JointType
+joints_to_localise = [JointType.Nose,
+                      JointType.RightShoulder,
+                      JointType.LeftShoulder,
+                      JointType.RightElbow,
+                      JointType.LeftElbow,
+                      JointType.RightHand,
+                      JointType.LeftHand]
+joints_to_localise = [joint.value for joint in joints_to_localise]
 
-def get_localised_joints(img, joints_to_localise, joint_positions):
+
+def get_localised_joints(img, joint_positions):
     """
     Generate multiple crops around specific joints which are resized to
     be the same size as the original image.
@@ -10,7 +21,6 @@ def get_localised_joints(img, joints_to_localise, joint_positions):
     These crops are then fed into the appearance encoder.
     Args:
         orig_img (np array): Original img to localise joints from.
-        joints_to_localise (list): List of ids of the joints to localise.
         joint_positions (list): List of pixel positions of all the joints
     Returns:
         localised_joints (list): np arrays of each localised joint image.

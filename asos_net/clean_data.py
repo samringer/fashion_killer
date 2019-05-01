@@ -42,5 +42,5 @@ def clean_asos_dir(data_dir):
 
 
 if __name__ == "__main__":
-    dir_path = '/home/sam/data/asos/train_clean'
+    dir_path = '/home/sam/data/asos/2604_clean'
     clean_asos_dir(dir_path)

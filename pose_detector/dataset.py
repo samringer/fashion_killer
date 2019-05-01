@@ -164,8 +164,7 @@ def _get_kp_loss_mask(keypoints):
     kp_loss_mask = []
     for point in keypoints:
         if point == (0, 0):
-            # TODO: Check if this works
-            kp_loss_mask.append(0.01)
+            kp_loss_mask.append(0.)
         else:
             kp_loss_mask.append(1.)
     return torch.Tensor(kp_loss_mask)
