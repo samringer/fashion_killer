@@ -1,5 +1,7 @@
 import torch
+from torch.utils.checkpoint import checkpoint as chk
 from torch import nn
+
 from GAN.model.spectral_norm import SpecNorm
 from GAN.model.attention import AttentionMech
 
@@ -22,20 +24,28 @@ class Discriminator(nn.Module):
 
         self.fc = SpecNorm(nn.Linear(512*4*4, 1))
 
+    def _chk_block(self, block):
+        """ Used for gradient checkpointing."""
+        def _custom_forward(*inputs):
+            outputs = block(inputs[0])
+            return outputs
+        return _custom_forward
+
     def forward(self, app_img, pose_img, gen_img):
         x = torch.cat([app_img, pose_img, gen_img], dim=1)
-        x = self.from_RGB(x)
-        x = self.block_1(x)
-        x = self.block_2(x)
-        x = self.block_3(x)
-        x = self.attn_1(x)
-        x = self.block_4(x)
-        x = self.attn_2(x)
-        x = self.block_5(x)
-        x = self.block_6(x)
+        x = chk(self._chk_block(self.from_RGB), x)
+        x = chk(self._chk_block(self.block_1), x)
+        x = chk(self._chk_block(self.block_2), x)
+        x = chk(self._chk_block(self.block_3), x)
+        x = chk(self._chk_block(self.attn_1), x)
+        x = chk(self._chk_block(self.block_4), x)
+        x = chk(self._chk_block(self.attn_2), x)
+        x = chk(self._chk_block(self.block_5), x)
+        x = chk(self._chk_block(self.block_6), x)
         #x = self.block_7(x)
         x = x.view(-1, 4*4*512)
-        return self.fc(x)
+        x = chk(self._chk_block(self.fc), x)
+        return x
 
 
 class ConvBlock(nn.Module):

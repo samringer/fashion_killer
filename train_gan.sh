@@ -1,9 +1,9 @@
 set -e
 
-experiment=BIG_fix_shape_bug
+experiment=TEST
 learning_rate=5e-5
 discriminator_lr=2e-4
-batch_size=16
+batch_size=32
 over_train=False
 use_fp16=False
 
