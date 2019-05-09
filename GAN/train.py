@@ -45,6 +45,12 @@ def train(unused_argv):
     g_optimizer = optim.Adam(generator.parameters(), lr=FLAGS.learning_rate, betas=(0.0, 0.9))
     d_optimizer = optim.Adam(discriminator.parameters(), lr=FLAGS.discriminator_lr, betas=(0.0, 0.9))
 
+    if FLAGS.use_fp16:
+        generator, g_optimizer = amp.initialize(generator, g_optimizer,
+                                                opt_level='O1')
+        discriminator, d_optimizer = amp.initialize(discriminator, d_optimizer,
+                                                    opt_level='O1')
+
     step_num = 0
     # TODO: Add back in
     #lr_scheduler = ReduceLROnPlateau(optimizer, factor=0.5,
@@ -65,55 +71,46 @@ def train(unused_argv):
         save_path = join(models_path, '{}.pt'.format(epoch))
         torch.save(generator.state_dict(), save_path)
 
-        for batch in dataloader:
-            app_img = batch['app_img']
-            pose_img = batch['pose_img']
-            target_img = batch['target_img']
-
-            app_img = nn.MaxPool2d(kernel_size=4)(app_img)
-            pose_img = nn.MaxPool2d(kernel_size=4)(pose_img)
-            target_img = nn.MaxPool2d(kernel_size=4)(target_img)
-
-            #lv = torch.zeros([FLAGS.batch_size, 512, 1, 1])
-            #lv = torch.Tensor(FLAGS.batch_size, 512, 1, 1)
-            #lv = lv.normal_()
-            #lv = lv.cuda()
-
-            if FLAGS.use_cuda:
-                app_img = app_img.cuda()
-                pose_img = pose_img.cuda()
-                target_img = target_img.cuda()
-
-            gen_img = generator(app_img, pose_img)
-
-            # Hinge loss
-            d_fake_score = discriminator(app_img, pose_img, gen_img)
-            d_real_score = discriminator(app_img, pose_img, target_img)
-            d_fake_loss = nn.ReLU()(1 + d_fake_score)
-            d_real_loss = nn.ReLU()(1 - d_real_score)
-            d_loss = d_fake_loss.mean() + d_real_loss.mean()
+        iter_dataloader = iter(dataloader)
+        # Trick to use a larger effective batch size.
+        for _ in range(len(dataloader)//2):
+            batch_1 = next(iter_dataloader)
+            batch_2 = next(iter_dataloader)
+            batch_1_data = _prepare_batch_data(batch_1)
+            batch_2_data = _prepare_batch_data(batch_2)
 
             d_optimizer.zero_grad()
-            d_loss.backward()
+            for batch_data in [batch_1_data, batch_1_data]:
+                app_img, pose_img, target_img = batch_data
+
+                with torch.no_grad():
+                    gen_img = generator(app_img, pose_img)
+
+                # Hinge loss
+                d_fake_score = discriminator(app_img, pose_img, gen_img)
+                d_real_score = discriminator(app_img, pose_img, target_img)
+
+                d_fake_loss = nn.ReLU()(1 + d_fake_score)
+                d_real_loss = nn.ReLU()(1 - d_real_score)
+                d_loss = d_fake_loss.mean() + d_real_loss.mean()
+                if FLAGS.use_fp16:
+                    with amp.scale_loss(d_loss, d_optimizer) as scaled_loss:
+                        scaled_loss.backward()
+                else:
+                    d_loss.backward()
             d_optimizer.step()
 
-            gen_img = generator(app_img, pose_img)
-            g_loss = - discriminator(app_img, pose_img, gen_img).mean()
-            # TODO: Check if this helps
-            #l1_loss = nn.L1Loss()(gen_img, target_img)
-            g_total_loss = g_loss #+ l1_loss
-
             g_optimizer.zero_grad()
-            g_total_loss.backward()
+            for batch_data in [batch_1_data, batch_2_data]:
+                app_img, pose_img, target_img = batch_data
+                gen_img = generator(app_img, pose_img)
+                g_loss = - discriminator(app_img, pose_img, gen_img).mean()
+                if FLAGS.use_fp16:
+                    with amp.scale_loss(g_loss, g_optimizer) as scaled_loss:
+                        scaled_loss.backward()
+                else:
+                    g_loss.backward()
             g_optimizer.step()
-
-            # Trick to use an effectively larger batch size.
-            # TODO
-            """
-            if step_num % 4 == 0:
-                d_optimizer.step()
-                d_optimizer.zero_grad()
-            """
 
             if step_num % FLAGS.tb_log_interval == 0:
                 log_results(epoch, step_num, logger, gen_img,
@@ -129,10 +126,27 @@ def train(unused_argv):
                     'step_num': step_num
                 }
                 save_checkpoint(checkpoint_state)
-            logging.info(f"{step_num} {g_loss.item():.4f}")
+            logging.info(f"{step_num} {d_loss.item():.4f} {g_loss.item():.4f}")
             #logging.info(f"{step_num} {l1_loss.item():.4f}")
             #lr_scheduler.step(loss.item())
             step_num += 1
+
+
+def _prepare_batch_data(batch):
+    app_img = batch['app_img']
+    pose_img = batch['pose_img']
+    target_img = batch['target_img']
+
+    if FLAGS.use_cuda:
+        app_img = app_img.cuda()
+        pose_img = pose_img.cuda()
+        target_img = target_img.cuda()
+
+    app_img = nn.MaxPool2d(kernel_size=2)(app_img)
+    pose_img = nn.MaxPool2d(kernel_size=2)(pose_img)
+    target_img = nn.MaxPool2d(kernel_size=2)(target_img)
+
+    return app_img, pose_img, target_img
 
 
 def log_results(epoch, step_num, writer, gen_img, g_loss, d_loss):

@@ -17,7 +17,7 @@ class Discriminator(nn.Module):
         self.block_4 = ConvBlock(512, 512)
         self.block_5 = ConvBlock(512, 512)
         self.block_6 = ConvBlock(512, 512)
-        #self.block_7 = ConvBlock(512, 512)
+        self.block_7 = ConvBlock(512, 512)
 
         self.attn_1 = AttentionMech(512)
         self.attn_2 = AttentionMech(512)
@@ -25,7 +25,6 @@ class Discriminator(nn.Module):
         self.fc = SpecNorm(nn.Linear(512*4*4, 1))
 
     def _chk_block(self, block):
-        """ Used for gradient checkpointing."""
         def _custom_forward(*inputs):
             outputs = block(inputs[0])
             return outputs
@@ -33,7 +32,7 @@ class Discriminator(nn.Module):
 
     def forward(self, app_img, pose_img, gen_img):
         x = torch.cat([app_img, pose_img, gen_img], dim=1)
-        x = chk(self._chk_block(self.from_RGB), x)
+        x = self.from_RGB(x)
         x = chk(self._chk_block(self.block_1), x)
         x = chk(self._chk_block(self.block_2), x)
         x = chk(self._chk_block(self.block_3), x)
@@ -42,7 +41,7 @@ class Discriminator(nn.Module):
         x = chk(self._chk_block(self.attn_2), x)
         x = chk(self._chk_block(self.block_5), x)
         x = chk(self._chk_block(self.block_6), x)
-        #x = self.block_7(x)
+        x = chk(self._chk_block(self.block_7), x)
         x = x.view(-1, 4*4*512)
         x = chk(self._chk_block(self.fc), x)
         return x
@@ -89,7 +88,7 @@ class FinalBlock(nn.Module):
         super().__init__()
         self.conv_1 = ConvLayer(512, 512)
         self.conv_2 = ConvLayer(512, 512, 4, padding=0)
-        self.linear = SpecNorm(nn.Linear(512, 1, bias=False))
+        self.linear = SpecNorm(nn.Linear(512, 1))
 
     def forward(self, x):
         x = self.conv_1(x)

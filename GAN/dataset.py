@@ -35,7 +35,7 @@ class AsosDataset(Dataset):
     def __getitem__(self, index):
         if self.overtrain:
             index = 0
-            set_seeds()
+            set_seeds()  # Needed so same app_img always picked.
 
         outfit_dir = self.outfit_dirs[index]
 

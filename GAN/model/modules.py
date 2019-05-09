@@ -40,32 +40,44 @@ class DecoderBlock(nn.Module):
 class EncResLayer(nn.Module):
     def __init__(self, in_c):
         super().__init__()
+        self.conv_1 = SpecNorm(nn.Conv2d(in_c, in_c, kernel_size=3,
+                                         padding=1, bias=False))
+        self.conv_2 = SpecNorm(nn.Conv2d(in_c, in_c, kernel_size=3,
+                                         padding=1, bias=False))
+        self.batch_norm_1 = nn.BatchNorm2d(in_c)
+        self.batch_norm_2 = nn.BatchNorm2d(in_c)
         self.l_relu = nn.LeakyReLU(negative_slope=0.2)
-        self.conv_1 = SpecNorm(nn.Conv2d(in_c, in_c, 3, padding=1))
-        self.conv_2 = SpecNorm(nn.Conv2d(in_c, in_c, 3, padding=1))
 
     def forward(self, x):
-        res = x
+        f_x = self.conv_1(x)
+        f_x = self.batch_norm_1(f_x)
+        f_x = self.l_relu(f_x)
+        f_x = self.conv_2(f_x)
+        f_x = self.batch_norm_2(f_x)
+        x = f_x + x
         x = self.l_relu(x)
-        x = self.conv_1(x)
-        x = self.l_relu(x)
-        x = self.conv_2(x)
-        return res + x
+        return x
 
 
 class DecResLayer(nn.Module):
     def __init__(self, in_c):
         super().__init__()
+        self.conv_1 = SpecNorm(nn.Conv2d(in_c, in_c, 3, padding=1,
+                                         bias=False))
+        self.conv_2 = SpecNorm(nn.Conv2d(in_c, in_c//2, 3, padding=1,
+                                         bias=False))
         self.proj = SpecNorm(nn.Conv2d(in_c, in_c//2, 1))
-        self.conv_1 = SpecNorm(nn.Conv2d(in_c, in_c, 3, padding=1))
-        self.conv_2 = SpecNorm(nn.Conv2d(in_c, in_c//2, 3, padding=1))
         self.l_relu = nn.LeakyReLU(negative_slope=0.2)
 
+        self.batch_norm_1 = nn.BatchNorm2d(in_c)
+        self.batch_norm_2 = nn.BatchNorm2d(in_c//2)
+
     def forward(self, x):
-        res = x
-        x = self.l_relu(x)
-        x = self.conv_1(x)
-        x = self.l_relu(x)
-        x = self.conv_2(x)
-        out = x + self.proj(res)
-        return out
+        f_x = self.conv_1(x)
+        f_x = self.batch_norm_1(f_x)
+        f_x = self.l_relu(f_x)
+        f_x = self.conv_2(f_x)
+        f_x = self.batch_norm_2(f_x)
+        f_x = f_x + self.proj(x)
+        f_x = self.l_relu(f_x)
+        return f_x
