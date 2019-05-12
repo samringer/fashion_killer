@@ -1,4 +1,5 @@
 from pathlib import Path
+import pickle
 import shutil
 
 import numpy as np
@@ -36,11 +37,10 @@ def clean_asos_dir(data_dir):
                 break
 
             # Save the pose images
-            pose_img *= 256
-            pose_img = pose_img.astype('uint8')
-            cv2.imwrite(str(img_path.with_suffix('.pose.jpg')), pose_img)
-
+            #pose_img *= 256
+            #pose_img = pose_img.astype('uint8')
+            #cv2.imwrite(str(img_path.with_suffix('.pose.jpg')), pose_img)
 
 if __name__ == "__main__":
-    dir_path = '/home/sam/data/asos/2604_clean'
+    dir_path = '/home/sam/data/asos/1205_test/'
     clean_asos_dir(dir_path)

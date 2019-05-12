@@ -41,7 +41,7 @@ class AsosDataset(Dataset):
 
         # Sample such that we will not use an appearance image with it's
         # corresponding pose.
-        app_num, pose_num = sample(list(range(3)), 2)
+        app_num, pose_num = sample(list(range(4)), 2)
 
         app_path = outfit_dir/str(app_num)
         pose_path = (outfit_dir/str(pose_num)).with_suffix('.pose.jpg')
