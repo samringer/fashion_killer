@@ -104,7 +104,9 @@ def train(unused_argv):
             for batch_data in [batch_1_data, batch_2_data]:
                 app_img, pose_img, target_img = batch_data
                 gen_img = generator(app_img, pose_img)
-                g_loss = - discriminator(app_img, pose_img, gen_img).mean()
+                l1_loss = 5 * nn.L1Loss()(gen_img, target_img)
+                gan_loss = - discriminator(app_img, pose_img, gen_img).mean()
+                g_loss = l1_loss + gan_loss
                 if FLAGS.use_fp16:
                     with amp.scale_loss(g_loss, g_optimizer) as scaled_loss:
                         scaled_loss.backward()
@@ -114,7 +116,7 @@ def train(unused_argv):
 
             if step_num % FLAGS.tb_log_interval == 0:
                 log_results(epoch, step_num, logger, gen_img,
-                            g_loss, d_loss)
+                           d_loss, g_loss, l1_loss, gan_loss)
 
             if step_num % FLAGS.checkpoint_interval == 0:
                 # TODO: Add in lr scheduler
@@ -149,7 +151,7 @@ def _prepare_batch_data(batch):
     return app_img, pose_img, target_img
 
 
-def log_results(epoch, step_num, writer, gen_img, g_loss, d_loss):
+def log_results(epoch, step_num, writer, gen_img, d_loss, g_loss, l1_loss, gan_loss):
     """
     Log the results using tensorboardx so they can be
     viewed using a tensorboard server.
@@ -158,7 +160,8 @@ def log_results(epoch, step_num, writer, gen_img, g_loss, d_loss):
     img_file_name = 'generated_img/{}'.format(epoch)
     writer.add_image(img_file_name, gen_img, step_num)
     writer.add_scalar('Train/g_loss', g_loss, step_num)
-    #writer.add_scalar('Train/l1_loss', l1_loss, step_num)
+    writer.add_scalar('Train/l1_loss', l1_loss, step_num)
+    writer.add_scalar('Train/gan_loss', gan_loss, step_num)
     writer.add_scalar('Train/d_loss', d_loss, step_num)
 
 

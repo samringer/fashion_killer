@@ -310,7 +310,7 @@ def _create_heat_maps(keypoints, edge_size, sigma=20):
     return heat_maps
 
 
-def _create_heat_map(keypoint, edge_size, sigma=20):
+def _create_heat_map(keypoint, edge_size, sigma=6):
     """
     Create a heat map for a given keypoint.
     Args:

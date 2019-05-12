@@ -7,9 +7,10 @@ from torchvision import transforms
 
 from pose_detector.model.model import PoseDetector
  #from v_u_net.model.v_u_net import CachedVUNet
-from asos_net.model.u_net import UNet
+#from asos_net.model.u_net import UNet
 from pose_drawer.pose_drawer import PoseDrawer
 from v_u_net.localise_joint_appearances import get_localised_joints
+from GAN.model.u_net import UNet
 
 
 class Monkey:
@@ -22,7 +23,7 @@ class Monkey:
     pose_drawer = PoseDrawer()
 
     pose_model_base_path = 'pretrained_models/pose_detector.pt'
-    app_model_base_path = 'pretrained_models/27_04_asosnet.pt'
+    app_model_base_path = 'pretrained_models/11_05_fac_2_down_gan.pt'
     app_img_path = 'test_imgs/2204_asos.jpg'
 
     def __init__(self):
@@ -50,7 +51,10 @@ class Monkey:
         # TODO: There is lots of replication in here thats in other methods
         # TODO: Work so this float is not needed
         app_tensor = transforms.ToTensor()(app_img).float()
-        self.app_tensor = app_tensor.view(1, 3, 256, 256)
+
+        # Downsample as using smaller ims for now
+        app_tensor = nn.MaxPool2d(kernel_size=2)(app_tensor)
+        self.app_tensor = app_tensor.view(1, 3, 128, 128)
 
         if self.use_cuda:
             self.app_tensor = self.app_tensor.cuda()
@@ -87,9 +91,11 @@ class Monkey:
         if pose_img is None:
             return
 
-        # TODO: Remove this float
         pose_tensor = transforms.ToTensor()(pose_img).float()
         pose_tensor = pose_tensor.unsqueeze(0)
+
+        # Downsample as currently using smaller imgs
+        pose_tensor = nn.MaxPool2d(kernel_size=2)(pose_tensor)
         if self.use_cuda:
             pose_tensor = pose_tensor.cuda()
 
@@ -139,7 +145,6 @@ class Monkey:
         """
         app_img = self.preprocess_img(app_img)
         # TODO: There is lots of replication in here thats in other methods
-        # TODO: Work so this float is not needed
         app_tensor = transforms.ToTensor()(app_img).float()
         app_tensor = app_tensor.view(1, 3, 256, 256)
 
@@ -173,15 +178,11 @@ class Monkey:
         localised_joints = get_localised_joints(app_img, app_joint_pos)
 
         app_img_pose = self.pose_drawer.draw_pose_from_keypoints(app_joint_pos)
-        # TODO: Remove these floats here
         app_img = transforms.ToTensor()(app_img).float()
         app_img_pose = transforms.ToTensor()(app_img_pose).float()
 
-        # TODO: This can be neater
-        # TODO: Remove the float
         localised_joints = [transforms.ToTensor()(i).float()
                             for i in localised_joints]
-        # TODO: Remove the float
         localised_joints = torch.cat(localised_joints).float()
 
         # Mock having batch size one to make dimensions work in model.
