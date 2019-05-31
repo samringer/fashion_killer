@@ -1,11 +1,11 @@
 set -e
 
-experiment=TEST
+experiment=TEST_perceptual_loss_fix_double_count
 learning_rate=2e-5
 batch_size=128
 over_train=False
-use_fp16=True
-num_epochs=30
+use_fp16=False
+num_epochs=20
 
 exp_name=$(date +"%d_%m")_${experiment}
 EXP_DIR=/home/sam/experiments/DeformGAN/${exp_name}
@@ -21,7 +21,7 @@ python -m DeformGAN.train \
     --exp_name=$exp_name \
     --batch_size=$batch_size \
     --learning_rate=$learning_rate \
-    --over_train=${over_train} \
+    --over_train=$over_train \
     --use_fp16=$use_fp16 \
     --num_epochs=$num_epochs \
     #--load_checkpoint=$load_checkpoint \

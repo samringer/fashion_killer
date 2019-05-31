@@ -10,6 +10,7 @@ from apex import amp
 
 from DeformGAN.model.generator import Generator
 from DeformGAN.dataset import AsosDataset
+from DeformGAN.perceptual_loss_vgg import PerceptualLossVGG
 from utils import (prepare_experiment_dirs,
                    get_tb_logger,
                    set_seeds)
@@ -28,8 +29,11 @@ def train(unused_argv):
     set_seeds()
 
     generator = Generator()
+    perceptual_loss_vgg = PerceptualLossVGG()
     if FLAGS.use_cuda:
         generator = generator.cuda()
+        perceptual_loss = perceptual_loss_vgg.cuda()
+    perceptual_loss_vgg.eval()
 
     dataset = AsosDataset(root_data_dir=FLAGS.data_dir,
                           overtrain=FLAGS.over_train)
@@ -80,15 +84,17 @@ def train(unused_argv):
             g_optimizer.zero_grad()
             gen_img = generator(app_img, app_pose_img, pose_img)
             l1_loss = nn.L1Loss()(gen_img, target_img)
+            perceptual_loss = perceptual_loss_vgg(gen_img, target_img)
+            loss = l1_loss + perceptual_loss
             if FLAGS.use_fp16:
-                with amp.scale_loss(l1_loss, g_optimizer) as scaled_l:
+                with amp.scale_loss(loss, g_optimizer) as scaled_l:
                     scaled_l.backward()
             else:
-                l1_loss.backward()
-            g_optimizer.step()
+                loss.backward()
+                g_optimizer.step()
 
             if step_num % FLAGS.tb_log_interval == 0:
-                log_results(epoch, step_num, logger, gen_img, l1_loss)
+                log_results(epoch, step_num, logger, gen_img, loss, l1_loss, perceptual_loss)
 
             if step_num % FLAGS.checkpoint_interval == 0:
                 # TODO: Add in lr scheduler
@@ -98,13 +104,14 @@ def train(unused_argv):
                     'step_num': step_num
                 }
                 save_checkpoint(checkpoint_state)
-            logging.info(f"{step_num} {l1_loss.item():.4f}")
+            logging.info(f"{step_num} {loss.item():.4f}")
             #logging.info(f"{step_num} {l1_loss.item():.4f}")
             #lr_scheduler.step(loss.item())
             step_num += 1
 
 
-def log_results(epoch, step_num, writer, gen_img, l1_loss):
+def log_results(epoch, step_num, writer, gen_img, loss, l1_loss,
+                perceptual_loss):
     """
     Log the results using tensorboardx so they can be
     viewed using a tensorboard server.
@@ -112,7 +119,9 @@ def log_results(epoch, step_num, writer, gen_img, l1_loss):
     gen_img = gen_img[0].detach().cpu()
     img_file_name = 'generated_img/{}'.format(epoch)
     writer.add_image(img_file_name, gen_img, step_num)
-    writer.add_scalar('Train/l1_loss', l1_loss, step_num)
+    writer.add_scalar('Train/total_loss', loss.item(), step_num)
+    writer.add_scalar('Train/l1_loss', l1_loss.item(), step_num)
+    writer.add_scalar('Train/perceptual_loss', perceptual_loss.item(), step_num)
 
 
 def save_checkpoint(checkpoint_state):
