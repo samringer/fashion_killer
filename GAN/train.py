@@ -105,6 +105,7 @@ def train(unused_argv):
                 app_img, pose_img, target_img = batch_data
                 gen_img = generator(app_img, pose_img)
                 l1_loss = 5 * nn.L1Loss()(gen_img, target_img)
+                # TODO: Why are we sending all three images through here?
                 gan_loss = - discriminator(app_img, pose_img, gen_img).mean()
                 g_loss = l1_loss + gan_loss
                 if FLAGS.use_fp16:

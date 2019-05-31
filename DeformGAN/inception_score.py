@@ -1,50 +1,66 @@
 # Based on https://github.com/sbarratt/inception-score-pytorch/blob/master/inception_score.py
 
+import argparse
+
 import torch
 from torch import nn
-from torch.autograd import Variable
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 from torchvision.models.inception import inception_v3
-from torchvision import transforms
 
 import numpy as np
 from scipy.stats import entropy
 
 from DeformGAN.dataset import AsosDataset
+from DeformGAN.model.generator import Generator
 from utils import set_seeds
 
 
-def normalize(batch):
-    batch = batch-0.5
-    batch = batch*0.5
-    return batch
-
-
-def score_validation():
+def score_generator_on_validation(generator):
     set_seeds()
     val_dataset = AsosDataset(root_data_dir='/home/sam/data/asos/2604_clean/val')
     val_dataloader = DataLoader(val_dataset, batch_size=64)
 
-    model = inception_v3(pretrained=True, transform_input=False)
+    inception_model = inception_v3(pretrained=True,
+                                   transform_input=False)
     if torch.cuda.is_available():
-        model = model.cuda()
-    model.eval()
+        inception_model = inception_model.cuda()
+        generator = generator.cuda()
+    inception_model.eval()
+    generator.eval()
 
     inception_scores = []
     for batch in val_dataloader:
-        imgs = normalize(batch['app_img'])
+        app_img = batch['app_img']
+        app_pose_img = batch['app_pose_img']
+        target_img = batch['target_img']
+        pose_img = batch['pose_img']
+
+        # Downsample as in traintime
+        app_img = nn.MaxPool2d(kernel_size=4)(app_img)
+        app_pose_img = nn.MaxPool2d(kernel_size=4)(app_pose_img)
+        target_img = nn.MaxPool2d(kernel_size=4)(target_img)
+        pose_img = nn.MaxPool2d(kernel_size=4)(pose_img)
+
         if torch.cuda.is_available():
-            imgs = imgs.cuda()
-        inception_scores.append(inception_score_on_batch(imgs, model))
+            app_img = app_img.cuda()
+            app_pose_img = app_pose_img.cuda()
+            target_img = target_img.cuda()
+            pose_img = pose_img.cuda()
+
+        with torch.no_grad():
+            gen_img = generator(app_img, app_pose_img, pose_img)
+        batch_score = inception_score_on_batch(gen_img, inception_model)
+        inception_scores.append(batch_score)
 
     return sum(inception_scores)/len(inception_scores)
 
 
-def inception_score_on_batch(x, model):
+def inception_score_on_batch(x, inception_model):
     x = F.interpolate(x, size=(299, 299))
-    x = model(x)
+    with torch.no_grad():
+        x = inception_model(x)
     model_out = F.softmax(x, dim=1).data.cpu().numpy()
     p_y = np.mean(model_out, axis=0)
     scores = [entropy(p_yx, p_y) for p_yx in model_out]
@@ -52,4 +68,9 @@ def inception_score_on_batch(x, model):
 
 
 if __name__ == '__main__':
-    print(score_validation())
+    parser = argparse.ArgumentParser()
+    parser.add_argument("generator_path")
+    args = parser.parse_args()
+    generator = Generator()
+    generator.load_state_dict(torch.load(args.generator_path))
+    print(f"{score_generator_on_validation(generator):.3f}")
