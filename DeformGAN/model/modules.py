@@ -27,6 +27,8 @@ class GenDecConvLayer(nn.Module):
             x = nn.functional.interpolate(prev_inp, scale_factor=2)
             x = torch.cat([source_enc_f, target_enc_f, x], dim=1)
         else:
+            # TODO: We want to use attention to do something more
+            #       sophisticated than a cat?
             x = torch.cat([source_enc_f, target_enc_f], dim=1)
         if self.dropout:
             x = nn.Dropout()(x)

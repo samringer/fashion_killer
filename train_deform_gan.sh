@@ -1,11 +1,11 @@
 set -e
 
-experiment=TEST_perceptual_loss_fix_double_count
-learning_rate=2e-5
+experiment=TEST_2e-4_lr
+learning_rate=2e-4
 batch_size=128
 over_train=False
 use_fp16=False
-num_epochs=20
+num_epochs=70
 
 exp_name=$(date +"%d_%m")_${experiment}
 EXP_DIR=/home/sam/experiments/DeformGAN/${exp_name}

@@ -32,7 +32,7 @@ def train(unused_argv):
     perceptual_loss_vgg = PerceptualLossVGG()
     if FLAGS.use_cuda:
         generator = generator.cuda()
-        perceptual_loss = perceptual_loss_vgg.cuda()
+        perceptual_loss_vgg = perceptual_loss_vgg.cuda()
     perceptual_loss_vgg.eval()
 
     dataset = AsosDataset(root_data_dir=FLAGS.data_dir,
@@ -84,7 +84,7 @@ def train(unused_argv):
             g_optimizer.zero_grad()
             gen_img = generator(app_img, app_pose_img, pose_img)
             l1_loss = nn.L1Loss()(gen_img, target_img)
-            perceptual_loss = perceptual_loss_vgg(gen_img, target_img)
+            perceptual_loss = 0.5 * perceptual_loss_vgg(gen_img, target_img)
             loss = l1_loss + perceptual_loss
             if FLAGS.use_fp16:
                 with amp.scale_loss(loss, g_optimizer) as scaled_l:
