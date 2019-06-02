@@ -1,7 +1,10 @@
 import torch
 from torch import nn
 
-from DeformGAN.model.modules import GenEncConvLayer, GenDecConvLayer
+from DeformGAN.model.modules import (GenEncConvLayer,
+                                     GenDecConvLayer,
+                                     GenDecAttnBlock,
+                                     AttnMech)
 
 
 class Generator(nn.Module):
@@ -26,12 +29,12 @@ class Generator(nn.Module):
         #self.target_enc_conv_7 = GenEncConvLayer(512, 512)
         #self.target_enc_conv_8 = GenEncConvLayer(512, 512)
 
-        self.dec_conv_1 = GenDecConvLayer(512*4, 512, dropout=True)
+        self.dec_conv_1 = GenDecAttnBlock(512, 1024, 512, dropout=True)
         #self.dec_conv_2 = GenDecConvLayer(512*3, 512, dropout=True)
         #self.dec_conv_3 = GenDecConvLayer(512*3, 512, dropout=True)
-        self.dec_conv_4 = GenDecConvLayer(512*3, 512)
-        self.dec_conv_5 = GenDecConvLayer(512*2, 256)
-        self.dec_conv_6 = GenDecConvLayer(256*2, 128)
+        self.dec_conv_4 = GenDecAttnBlock(512, 512, 512)
+        self.dec_conv_5 = GenDecAttnBlock(256, 512, 256)
+        self.dec_conv_6 = GenDecAttnBlock(128, 256, 128)
         self.dec_conv_7 = nn.Conv2d(128*2, 3, 3, stride=1, padding=1)
 
     def forward(self, app_img, app_pose_img, pose_img):

@@ -1,8 +1,8 @@
 // peer connection
 var pc_original = null;
 var pc_pose = null;
-var pc_appearance = null;
-pcs = [pc_original, pc_pose, pc_appearance];
+// var pc_appearance = null;
+pcs = [pc_original, pc_pose] //, pc_appearance];
 
 
 function createPeerConnection(transform) {
@@ -77,7 +77,7 @@ function start() {
     document.getElementById('start').style.display = 'none';
     pc_original = createPeerConnection('original');
     pc_pose = createPeerConnection('pose');
-    pc_appearance = createPeerConnection('appearance');
+    // pc_appearance = createPeerConnection('appearance');
 
     var time_start = null;
 
@@ -113,18 +113,18 @@ function start() {
             stream.getTracks().forEach(function(track) {
                 pc_original.addTrack(track, stream);
                 pc_pose.addTrack(track, stream);
-                pc_appearance.addTrack(track, stream);
+                // pc_appearance.addTrack(track, stream);
             });
             negotiate(pc_original, 'original');
             negotiate(pc_pose, 'pose');
-            negotiate(pc_appearance, 'appearance');
+            // negotiate(pc_appearance, 'appearance');
         }, function(err) {
             alert('Could not acquire media: ' + err);
         });
     } else {
         negotiate(pc_original, 'original');
         negotiate(pc_pose, 'pose');
-        negotiate(pc_appearance, 'appearance');
+        // negotiate(pc_appearance, 'appearance');
     }
 
     document.getElementById('stop').style.display = 'inline-block';

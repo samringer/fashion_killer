@@ -1,4 +1,5 @@
 import argparse
+from datetime import datetime
 import asyncio
 import json
 import logging
@@ -45,9 +46,9 @@ class ImageTransformer:
         """
         preprocess_worker = Thread(target=self._std_transform)
         pose_worker = Thread(target=self._pose_detection)
-        app_worker = Thread(target=self._appearance_transer)
+        #app_worker = Thread(target=self._appearance_transer)
 
-        workers = [preprocess_worker, pose_worker, app_worker]
+        workers = [preprocess_worker, pose_worker] #, app_worker]
         for worker in workers:
             worker.setDaemon(True)
             worker.start()
@@ -70,6 +71,7 @@ class ImageTransformer:
         Used for both pose extraction and appearance transfer.
         """
         while True:
+            #start_time = datetime.now()
             input_img = None
             if self.in_img is not None:
                 input_img = self.in_img / 256
@@ -78,6 +80,8 @@ class ImageTransformer:
             # WebRTC wants in range 0-256
             if pose_img is not None:
                 self.pose_img = pose_img * 256
+            #delay = (datetime.now() - start_time).total_seconds()
+            #print("{:.1f} frames per second".format(1/delay))
 
     def _appearance_transer(self):
         """
@@ -114,13 +118,14 @@ class VideoTransformTrack(VideoStreamTrack):
 
         # Handle initial condition on startup.
         if IMAGE_TRANSFORMER.preprocessed_img is None or \
-           IMAGE_TRANSFORMER.pose_img is None or \
-           IMAGE_TRANSFORMER.app_img is None:
+           IMAGE_TRANSFORMER.pose_img is None: # or \
             return frame
+        #IMAGE_TRANSFORMER.app_img is None:
+        #return frame
 
-        if self.transform == 'appearance':
-            out_img = IMAGE_TRANSFORMER.app_img.astype('uint8')
-        elif self.transform == 'pose':
+        #if self.transform == 'appearance':
+        #    out_img = IMAGE_TRANSFORMER.app_img.astype('uint8')
+        if self.transform == 'pose':
             out_img = IMAGE_TRANSFORMER.pose_img.astype('uint8')
         else:
             out_img = IMAGE_TRANSFORMER.preprocessed_img.astype('uint8')

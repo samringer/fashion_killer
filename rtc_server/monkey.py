@@ -3,11 +3,9 @@ import numpy as np
 
 import torch
 from torch import nn
-from torchvision import transforms
+from torchvision import transforms, models
 
 from pose_detector.model.model import PoseDetector
- #from v_u_net.model.v_u_net import CachedVUNet
-#from asos_net.model.u_net import UNet
 from pose_drawer.pose_drawer import PoseDrawer
 from v_u_net.localise_joint_appearances import get_localised_joints
 from GAN.model.u_net import UNet
@@ -24,40 +22,43 @@ class Monkey:
 
     pose_model_base_path = 'pretrained_models/pose_detector.pt'
     app_model_base_path = 'pretrained_models/11_05_fac_2_down_gan.pt'
+    rcnn_base_path = 'pretrained_models/keypointrcnn_resnet50_fpn_coco-9f466800.pth'
     app_img_path = 'test_imgs/2204_asos.jpg'
 
     def __init__(self):
-        pose_model = PoseDetector()
-        if self.pose_model_base_path:
-            pose_model.load_state_dict(torch.load(self.pose_model_base_path))
+        #pose_model = PoseDetector()
+        #if self.pose_model_base_path:
+        #    pose_model.load_state_dict(torch.load(self.pose_model_base_path))
+        pose_model = models.detection.keypointrcnn_resnet50_fpn()
+        pose_model.load_state_dict(torch.load(self.rcnn_base_path))
         self.pose_model = pose_model.eval()
         if self.use_cuda:
             self.pose_model = self.pose_model.cuda()
 
-         #app_model = CachedVUNet()
-        app_model = UNet()
-        if self.app_model_base_path:
-            app_model.load_state_dict(torch.load(self.app_model_base_path))
-        self.app_model = app_model.eval()
-        if self.use_cuda:
-            self.app_model = self.app_model.cuda()
+        #app_model = CachedVUNet()
+        #app_model = UNet()
+        #if self.app_model_base_path:
+        #    app_model.load_state_dict(torch.load(self.app_model_base_path))
+        #self.app_model = app_model.eval()
+        #if self.use_cuda:
+        #    self.app_model = self.app_model.cuda()
 
         # TODO: This is temporary and should be neatened up
         # app_img_path = 'test_imgs/test_appearance_img.jpg'
-        app_img = cv2.imread(self.app_img_path)
-        app_img = cv2.cvtColor(app_img, cv2.COLOR_BGR2RGB)
-        app_img = self.preprocess_img(app_img)
-        app_img = np.asarray(app_img) / 256
+        #app_img = cv2.imread(self.app_img_path)
+        #app_img = cv2.cvtColor(app_img, cv2.COLOR_BGR2RGB)
+        #app_img = self.preprocess_img(app_img)
+        #app_img = np.asarray(app_img) / 256
         # TODO: There is lots of replication in here thats in other methods
         # TODO: Work so this float is not needed
-        app_tensor = transforms.ToTensor()(app_img).float()
+        #app_tensor = transforms.ToTensor()(app_img).float()
 
         # Downsample as using smaller ims for now
-        app_tensor = nn.MaxPool2d(kernel_size=2)(app_tensor)
-        self.app_tensor = app_tensor.view(1, 3, 128, 128)
+        #app_tensor = nn.MaxPool2d(kernel_size=2)(app_tensor)
+        #self.app_tensor = app_tensor.view(1, 3, 128, 128)
 
-        if self.use_cuda:
-            self.app_tensor = self.app_tensor.cuda()
+        #if self.use_cuda:
+        #    self.app_tensor = self.app_tensor.cuda()
          #self._generate_appearance_cache(app_img)
 
     @staticmethod
@@ -118,53 +119,18 @@ class Monkey:
 
         img = self.preprocess_img(img)
         img_tensor = transforms.ToTensor()(img).float()
+        img_tensor = img_tensor.view(1, 3, 256, 256)
+        img_tensor = nn.functional.interpolate(img_tensor,
+                                               size=(800, 800))
 
         if self.use_cuda:
             img_tensor = img_tensor.cuda()
 
         with torch.no_grad():
-            pafs, heat_maps = self.pose_model(img_tensor.view(1, 3, 256, 256))
+            model_out = self.pose_model(img_tensor)
 
-        heat_maps = nn.functional.interpolate(heat_maps[-1], scale_factor=4)
-        heat_maps = heat_maps.view(18, 256, 256)
-        heat_maps = heat_maps.cpu().detach().numpy()
-        # TODO: Neaten up
-        heat_maps[14] *= 0.8
-        heat_maps[15] *= 0.8
-        heat_maps[16] *= 0.8
-        heat_maps[17] *= 0.8
-        # TODO: potentilly remove
-        # heat_maps = _zero_heat_map_edges(heat_maps)
-
-        return self.pose_drawer.draw_pose_from_heat_maps(heat_maps)
-
-    def _generate_appearance_cache(self, app_img):
-        """
-        We don't need to recalculate the encoded appearance every
-        single forward pass so just do it once.
-        """
-        app_img = self.preprocess_img(app_img)
-        # TODO: There is lots of replication in here thats in other methods
-        app_tensor = transforms.ToTensor()(app_img).float()
-        app_tensor = app_tensor.view(1, 3, 256, 256)
-
-        if self.use_cuda:
-            app_tensor = app_tensor.cuda()
-
-        with torch.no_grad():
-            _, heat_maps = self.pose_model(app_tensor)
-
-        heat_maps = nn.functional.interpolate(heat_maps[-1], scale_factor=4)
-        heat_maps = heat_maps.view(18, 256, 256)
-        heat_maps = heat_maps.cpu().detach().numpy()
-        # TODO:
-        # heat_maps = _zero_heat_map_edges(heat_maps)
-
-        joint_pos = self.pose_drawer.extract_keypoints_from_heat_maps(heat_maps)
-        app_enc_inp = self._prep_app_encoder_inp(app_img, joint_pos)
-        with torch.no_grad():
-            cache = self.app_model.appearance_encoder(*app_enc_inp)
-        self.app_vec_1, self.app_vec_2, _, _ = cache
+        keypoints = extract_keypoints(model_out)
+        return self.pose_drawer.draw_pose_from_keypoints(keypoints)
 
     def _prep_app_encoder_inp(self, app_img, app_joint_pos):
         """
@@ -198,18 +164,40 @@ class Monkey:
         return (app_img, app_img_pose, localised_joints)
 
 
-def _zero_heat_map_edges(heat_map_tensor):
+def extract_keypoints(pose_model_out):
     """
-    There is an error where heat is very high around edge
-    of some heat maps. This is a hack to fix that and should
-    ideally not be permenant.
+    Used for preparing the keypoints the are the output of
+    the pretrained torchvision model.
+    """
+    keypoints = pose_model_out[0]['keypoints'].cpu().numpy()
+    if not keypoints:
+        return [(0, 0) for _ in range(18)]
+    keypoints = keypoints[0]
+    keypoints_score = pose_model_out[0]['keypoints_scores'].cpu().numpy()[0]
+    filtered_keypoints = [tuple([256*j/800 for j in kp[:2]])
+                          if keypoints_score[i] > 0 else (0, 0)
+                          for i, kp in enumerate(keypoints)]
+    filtered_keypoints = add_neck_keypoint(filtered_keypoints)
+    return filtered_keypoints
+
+
+def add_neck_keypoint(keypoints):
+    """
+    COCO by default does not contain a neck keypoint.
+    This function adds it in as an average of the left
+    and right shoulders if both are found, (0, 0) otherwise.
     Args:
-        heat_map_tensor (PyTorch tensor): Of size (18, 256, 256)
+        keypoints (l o tuples)
     Returns:
-        heat_map_tensor (PyTorch tensor): Of size (18, 256, 256)
+        keypoints (l o tuples): Keypoints with neck added in.
     """
-    heat_map_tensor[:, :5, :] = np.zeros([18, 5, 256])
-    heat_map_tensor[:, :, :5] = np.zeros([18, 256, 5])
-    heat_map_tensor[:, -5:, :] = np.zeros([18, 5, 256])
-    heat_map_tensor[:, :, -5:] = np.zeros([18, 256, 5])
-    return heat_map_tensor
+    r_shoulder_keypoint = keypoints[5]
+    l_shoulder_keypoint = keypoints[6]
+    if r_shoulder_keypoint != (0, 0) and l_shoulder_keypoint != (0, 0):
+        neck_keypoint_x = (r_shoulder_keypoint[0] + l_shoulder_keypoint[0])//2
+        neck_keypoint_y = (r_shoulder_keypoint[1] + l_shoulder_keypoint[1])//2
+        neck_keypoint = (neck_keypoint_x, neck_keypoint_y)
+    else:
+        neck_keypoint = (0, 0)
+    keypoints.insert(1, neck_keypoint)
+    return keypoints

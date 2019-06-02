@@ -72,15 +72,16 @@ class PoseDrawer():
             start_point = joint_positions[start_joint.value]
             end_point = joint_positions[end_joint.value]
             # Only draw connection if start point and end point both found.
-            if all([self._point_found(point.tolist()) for point in [start_point, end_point]]):
+            if all([self._point_found(point)
+                    for point in [start_point, end_point]]):
                 canvas = draw_line_on_canvas(canvas, start_point, end_point, connection_color)
 
                 # Also only draw the joints if they are connected to a limb.
                 # This stops the drawing of any isolated dots.
                 start_joint_color = joint_colors[start_joint.value]
                 end_joint_color = joint_colors[end_joint.value]
-                canvas = draw_point_on_canvas(canvas, start_point.tolist(), start_joint_color)
-                canvas = draw_point_on_canvas(canvas, end_point.tolist(), end_joint_color)
+                canvas = draw_point_on_canvas(canvas, start_point, start_joint_color)
+                canvas = draw_point_on_canvas(canvas, end_point, end_joint_color)
         return canvas
 
     def _point_found(self, point):
@@ -91,7 +92,9 @@ class PoseDrawer():
         Returns:
             found (bool): Point found by the pose detector.
         """
-        return point != [0, 0]
+        if isinstance(point, np.ndarray):
+            point = tuple(point.tolist())
+        return point != (0, 0)
 
 
 def draw_line_on_canvas(canvas, start_point, end_point, color, thickness=3):

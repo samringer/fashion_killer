@@ -1,6 +1,7 @@
-set -e
+#! /bin/zsh
+set -eu
 
-experiment=TEST_2e-4_lr
+experiment=BIG_attn_28_mill_params_5
 learning_rate=2e-4
 batch_size=128
 over_train=False
@@ -23,5 +24,7 @@ python -m DeformGAN.train \
     --learning_rate=$learning_rate \
     --over_train=$over_train \
     --use_fp16=$use_fp16 \
-    --num_epochs=$num_epochs \
+    --num_epochs=$num_epochs
     #--load_checkpoint=$load_checkpoint \
+
+./score_experiment.sh $EXP_DIR

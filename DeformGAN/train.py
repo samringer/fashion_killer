@@ -6,6 +6,7 @@ import torch
 from torch import nn, optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
+from torchsummary import summary
 from apex import amp
 
 from DeformGAN.model.generator import Generator
@@ -34,6 +35,8 @@ def train(unused_argv):
         generator = generator.cuda()
         perceptual_loss_vgg = perceptual_loss_vgg.cuda()
     perceptual_loss_vgg.eval()
+
+    summary(generator, input_size=[(3, 64, 64) for _ in range(3)])
 
     dataset = AsosDataset(root_data_dir=FLAGS.data_dir,
                           overtrain=FLAGS.over_train)
