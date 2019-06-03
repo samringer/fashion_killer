@@ -1,12 +1,12 @@
 #! /bin/zsh
 set -eu
 
-experiment=BIG_attn_28_mill_params_5
+experiment=TEST
 learning_rate=2e-4
-batch_size=128
+batch_size=64
 over_train=False
 use_fp16=False
-num_epochs=70
+num_epochs=300
 
 exp_name=$(date +"%d_%m")_${experiment}
 EXP_DIR=/home/sam/experiments/DeformGAN/${exp_name}

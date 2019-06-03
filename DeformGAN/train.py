@@ -4,7 +4,7 @@ import pickle
 from absl import flags, app, logging
 import torch
 from torch import nn, optim
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 from torchsummary import summary
 from apex import amp
@@ -48,11 +48,10 @@ def train(unused_argv):
     if FLAGS.use_fp16:
         generator, g_optimizer = amp.initialize(generator, g_optimizer,
                                                 opt_level='O1')
+        perceptual_loss_vgg = amp.initialize(perceptual_loss_vgg,
+                                             opt_level='O1')
 
-    # TODO: Add back in
-    #lr_scheduler = ReduceLROnPlateau(optimizer, factor=0.5,
-    #                                 patience=5000, verbose=True,
-    #                                 min_lr=FLAGS.learning_rate/50)
+    lr_scheduler = StepLR(g_optimizer, step_size=50, gamma=0.5)
 
     step_num = 0
     if FLAGS.load_checkpoint:
@@ -63,9 +62,12 @@ def train(unused_argv):
 
     for epoch in range(FLAGS.num_epochs):
 
+        lr_scheduler.step()
+
         # Save a generator at the start of each epoch
-        save_path = join(models_path, '{}.pt'.format(epoch))
-        torch.save(generator.state_dict(), save_path)
+        if epoch % 5 == 0:
+            save_path = join(models_path, '{}.pt'.format(epoch))
+            torch.save(generator.state_dict(), save_path)
 
         for batch in dataloader:
             app_img = batch['app_img']
@@ -108,8 +110,6 @@ def train(unused_argv):
                 }
                 save_checkpoint(checkpoint_state)
             logging.info(f"{step_num} {loss.item():.4f}")
-            #logging.info(f"{step_num} {l1_loss.item():.4f}")
-            #lr_scheduler.step(loss.item())
             step_num += 1
 
 

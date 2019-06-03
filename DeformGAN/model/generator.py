@@ -2,7 +2,7 @@ import torch
 from torch import nn
 
 from DeformGAN.model.modules import (GenEncConvLayer,
-                                     GenDecConvLayer,
+                                     GenDecConvBlock,
                                      GenDecAttnBlock,
                                      AttnMech)
 
@@ -34,8 +34,9 @@ class Generator(nn.Module):
         #self.dec_conv_3 = GenDecConvLayer(512*3, 512, dropout=True)
         self.dec_conv_4 = GenDecAttnBlock(512, 512, 512)
         self.dec_conv_5 = GenDecAttnBlock(256, 512, 256)
-        self.dec_conv_6 = GenDecAttnBlock(128, 256, 128)
-        self.dec_conv_7 = nn.Conv2d(128*2, 3, 3, stride=1, padding=1)
+        self.dec_conv_6 = GenDecConvBlock(128, 256, 128)
+        self.dec_conv_7 = GenDecConvBlock(64, 128, 64)
+        self.dec_conv_8 = nn.Conv2d(64, 3, 3, stride=1, padding=1)
 
     def forward(self, app_img, app_pose_img, pose_img):
         source_enc_inp = torch.cat([app_img, app_pose_img], dim=1)
@@ -67,8 +68,7 @@ class Generator(nn.Module):
         x = self.dec_conv_4(source_enc_x_4, target_enc_x_4, x)
         x = self.dec_conv_5(source_enc_x_3, target_enc_x_3, x)
         x = self.dec_conv_6(source_enc_x_2, target_enc_x_2, x)
-        x = nn.functional.interpolate(x, scale_factor=2)
-        x = torch.cat([source_enc_x_1, target_enc_x_1, x], dim=1)
-        x = self.dec_conv_7(x)
+        x = self.dec_conv_7(source_enc_x_1, target_enc_x_1, x)
+        x = self.dec_conv_8(x)
         x = nn.Sigmoid()(x)
         return x
