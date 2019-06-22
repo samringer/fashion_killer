@@ -102,7 +102,7 @@ def get_tb_logger():
     return SummaryWriter(logs_path)
 
 
-def set_seeds():
-    np.random.seed(42)
-    torch.manual_seed(42)
-    random.seed(42)
+def set_seeds(seed=42):
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    random.seed(seed)

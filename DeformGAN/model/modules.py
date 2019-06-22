@@ -1,4 +1,5 @@
 import torch
+import torch.utils.checkpoint as chk
 from torch import nn
 
 
@@ -22,13 +23,24 @@ class GenDecAttnBlock(nn.Module):
         self.conv = GenDecConvLayer(in_c, prev_in_c, out_c,
                                     dropout=dropout)
 
+    def custom(self, module):
+        """
+        Gradient checkpoint the attention blocks as they are very
+        memory intensive.
+        """
+        def custom_forward(*inp):
+            out = module(inp[0], inp[1])
+            return out
+        return custom_forward
+
     def forward(self, source_enc_f, target_enc_f, prev_inp):
-        x = self.attn_mech(source_enc_f, target_enc_f)
+        x = chk.checkpoint(self.custom(self.attn_mech), source_enc_f, target_enc_f)
+        #x = self.attn_mech(source_enc_f, target_enc_f)
         return self.conv(x, prev_inp)
 
 
 class GenDecConvBlock(nn.Module):
-    def __init__(self, in_c, prev_in_c, out_c, stride=1, dropout=False):
+    def __init__(self, in_c, prev_in_c, out_c, dropout=False):
         super().__init__()
         self.conv = GenDecConvLayer(in_c*2, prev_in_c, out_c,
                                     dropout=dropout)
@@ -54,7 +66,6 @@ class GenDecConvLayer(nn.Module):
         x = self.instance_norm(x)
         x = nn.ReLU()(x)
         return x
-
 
 
 class AttnMech(nn.Module):

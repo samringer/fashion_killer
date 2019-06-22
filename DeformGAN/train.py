@@ -12,12 +12,14 @@ from apex import amp
 from DeformGAN.model.generator import Generator
 from DeformGAN.dataset import AsosDataset
 from DeformGAN.perceptual_loss_vgg import PerceptualLossVGG
+from DeformGAN.init_generator_from_previous import init_generator_from_previous
 from utils import (prepare_experiment_dirs,
                    get_tb_logger,
                    set_seeds)
 
 
 FLAGS = flags.FLAGS
+flags.DEFINE_string('gen_init_path', None, "Path to initialise generator from")
 
 
 def train(unused_argv):
@@ -27,9 +29,12 @@ def train(unused_argv):
     """
     models_path = prepare_experiment_dirs()
     logger = get_tb_logger()
-    set_seeds()
+    set_seeds(128)
 
-    generator = Generator()
+    if FLAGS.gen_init_path:
+        generator = init_generator_from_previous(FLAGS.gen_init_path)
+    else:
+        generator = Generator()
     perceptual_loss_vgg = PerceptualLossVGG()
     if FLAGS.use_cuda:
         generator = generator.cuda()
@@ -41,17 +46,12 @@ def train(unused_argv):
     dataset = AsosDataset(root_data_dir=FLAGS.data_dir,
                           overtrain=FLAGS.over_train)
     dataloader = DataLoader(dataset, batch_size=FLAGS.batch_size,
-                            shuffle=True, num_workers=2, pin_memory=True)
+                            shuffle=True, num_workers=4, pin_memory=True)
 
-    g_optimizer = optim.Adam(generator.parameters(), lr=FLAGS.learning_rate, betas=(0.0, 0.9))
+    g_optimizer = optim.Adam(generator.parameters(),
+                             lr=FLAGS.learning_rate, betas=(0.0, 0.9))
 
-    if FLAGS.use_fp16:
-        generator, g_optimizer = amp.initialize(generator, g_optimizer,
-                                                opt_level='O1')
-        perceptual_loss_vgg = amp.initialize(perceptual_loss_vgg,
-                                             opt_level='O1')
-
-    lr_scheduler = StepLR(g_optimizer, step_size=50, gamma=0.5)
+    lr_scheduler = StepLR(g_optimizer, step_size=100, gamma=0.5)
 
     step_num = 0
     if FLAGS.load_checkpoint:
@@ -64,7 +64,6 @@ def train(unused_argv):
 
         lr_scheduler.step()
 
-        # Save a generator at the start of each epoch
         if epoch % 5 == 0:
             save_path = join(models_path, '{}.pt'.format(epoch))
             torch.save(generator.state_dict(), save_path)
@@ -81,22 +80,18 @@ def train(unused_argv):
                 target_img = target_img.cuda()
                 pose_img = pose_img.cuda()
 
-            app_img = nn.MaxPool2d(kernel_size=4)(app_img)
-            app_pose_img = nn.MaxPool2d(kernel_size=4)(app_pose_img)
-            target_img = nn.MaxPool2d(kernel_size=4)(target_img)
-            pose_img = nn.MaxPool2d(kernel_size=4)(pose_img)
+            app_img = nn.MaxPool2d(kernel_size=2)(app_img)
+            app_pose_img = nn.MaxPool2d(kernel_size=2)(app_pose_img)
+            target_img = nn.MaxPool2d(kernel_size=2)(target_img)
+            pose_img = nn.MaxPool2d(kernel_size=2)(pose_img)
 
             g_optimizer.zero_grad()
             gen_img = generator(app_img, app_pose_img, pose_img)
             l1_loss = nn.L1Loss()(gen_img, target_img)
             perceptual_loss = 0.5 * perceptual_loss_vgg(gen_img, target_img)
             loss = l1_loss + perceptual_loss
-            if FLAGS.use_fp16:
-                with amp.scale_loss(loss, g_optimizer) as scaled_l:
-                    scaled_l.backward()
-            else:
-                loss.backward()
-                g_optimizer.step()
+            loss.backward()
+            g_optimizer.step()
 
             if step_num % FLAGS.tb_log_interval == 0:
                 log_results(epoch, step_num, logger, gen_img, loss, l1_loss, perceptual_loss)
