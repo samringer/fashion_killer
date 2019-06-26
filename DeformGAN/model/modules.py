@@ -19,13 +19,13 @@ class GenEncConvLayer(nn.Module):
 
 
 class GenDecAttnBlock(nn.Module):
-    def __init__(self, in_c, prev_in_c, out_c, dropout=False):
+    def __init__(self, in_c, prev_in_c, out_c, dropout=False,
+                 downsample_fac=1):
         super().__init__()
-        self.attn_mech = AttnMech(in_c)
+        self.attn_mech = AttnMech(in_c, downsample_fac)
         self.conv = GenDecConvLayer(in_c, prev_in_c, out_c,
                                     dropout=dropout)
 
-    # TODO: This should be moved inside the attn mech itself
     def custom(self, module):
         """
         Gradient checkpoint the attention blocks as they are very
@@ -38,7 +38,6 @@ class GenDecAttnBlock(nn.Module):
 
     def forward(self, source_enc_f, target_enc_f, prev_inp):
         x = chk.checkpoint(self.custom(self.attn_mech), source_enc_f, target_enc_f)
-        #x = self.attn_mech(source_enc_f, target_enc_f)
         return self.conv(x, prev_inp)
 
 
@@ -72,73 +71,43 @@ class GenDecConvLayer(nn.Module):
 
 
 class AttnMech(nn.Module):
-    def __init__(self, in_c):
+    def __init__(self, in_c, downsample_fac=1):
+        """
+        Can optionally perform downsampling so we have a method similar
+        to sparse attention.
+        """
         super().__init__()
-        self.attn_size = in_c//8
-        self.key_conv = nn.Conv2d(in_c, self.attn_size, 1)
-        self.query_conv = nn.Conv2d(in_c, self.attn_size, 1)
-        self.value_conv = nn.Conv2d(in_c, self.attn_size, 1)
-        self.up_conv = nn.Conv2d(self.attn_size, in_c, 1)
+        self.attn_size = in_c//2
+        self.in_c = in_c
+        self.k_conv = nn.Conv2d(in_c, self.attn_size,
+                                kernel_size=downsample_fac,
+                                stride=downsample_fac)
+        self.q_conv = nn.Conv2d(in_c, self.attn_size,
+                                kernel_size=downsample_fac,
+                                stride=downsample_fac)
+        self.v_conv = nn.Conv2d(in_c, in_c,
+                                kernel_size=downsample_fac,
+                                stride=downsample_fac)
+        self.upsample = nn.Upsample(scale_factor=downsample_fac)
         self.gamma = nn.Parameter(torch.Tensor([0.]))
 
     def forward(self, source_enc_f, target_enc_f):
-        _, _, w, h = source_enc_f.shape
-        query = self.query_conv(target_enc_f)
-        key = self.key_conv(target_enc_f)
-        value = self.value_conv(target_enc_f)
+        query = self.q_conv(target_enc_f)
+        key = self.k_conv(source_enc_f)
+        value = self.v_conv(source_enc_f)
+
+        _, _, w, h = query.shape
 
         query = query.view(-1, self.attn_size, w*h).transpose(1, 2)
         key = key.view(-1, self.attn_size, w*h)
-        value = value.permute(0, 2, 3, 1).contiguous().view(-1, w*h, self.attn_size)
+        value = value.permute(0, 2, 3, 1).contiguous().view(-1, w*h, self.in_c)
 
         attn = query@key
         attn = nn.Softmax(dim=1)(attn)
         value = attn@value
-        value = value.view(-1, w, h, self.attn_size).permute(0, 3, 1, 2)
-        value = self.up_conv(value)
+        value = value.view(-1, w, h, self.in_c).permute(0, 3, 1, 2)
+        value = self.upsample(value)
         return target_enc_f + self.gamma * value
-
-
-class OldAttnMech(nn.Module):
-    def __init__(self, in_c):
-        """
-        I basically did not understand the idea that attention is
-        a weighted pooling. The pose should be the query and the
-        target appearance should be the key.
-        Also not fully understanding the SAGAN attn mech meant that I
-        didn't trust it for this use case. Turns out it makes sense.
-        """
-        super().__init__()
-        self.attn_size = in_c//8
-        self.attn_out = self.attn_size
-        self.key_conv = nn.Conv2d(in_c, self.attn_size, 1)
-        self.query_conv = nn.Conv2d(in_c, self.attn_size, 1)
-        self.k_q_linear = nn.Linear(self.attn_size*2, self.attn_out)
-        self.attn_conv = nn.Conv2d(self.attn_out+in_c, in_c, 1)
-        self.gamma = nn.Parameter(torch.Tensor([0.]))
-
-    def forward(self, source_enc_f, target_enc_f):
-        _, _, width, height = source_enc_f.shape
-
-        query = self.query_conv(source_enc_f)
-        query = query.view(-1, self.attn_size, width*height).transpose(1, 2)
-
-        key = self.key_conv(target_enc_f)
-        key = key.view(-1, self.attn_size, width*height).transpose(1, 2)
-
-        query = query.unsqueeze(1).expand(-1, width*height, -1, -1)
-        query = query.contiguous().view(-1, (width*height)**2, self.attn_size)
-        key = key.unsqueeze(2).expand(-1, -1, width*height, -1)
-        key = key.contiguous().view(-1, (width*height)**2, self.attn_size)
-
-        x = torch.cat([key, query], dim=2)
-        x = self.k_q_linear(x)
-        x = x.view(-1, width*height, width*height, self.attn_out)
-        x = x.sum(dim=2)
-        x = x.transpose(1, 2).view(-1, self.attn_out, width, height)
-        x = torch.cat([target_enc_f, x], dim=1)
-        out = self.attn_conv(x)
-        return target_enc_f + (self.gamma*out)
 
 
 class DisConvLayer(nn.Module):

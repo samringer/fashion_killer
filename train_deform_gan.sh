@@ -1,9 +1,9 @@
 #! /bin/zsh
 set -eu
 
-experiment=new_attn_mech
+experiment=Attn_all_the_way_plus_one_more_conv
 learning_rate=5e-4
-batch_size=32
+batch_size=64
 over_train=False
 use_fp16=False
 num_epochs=200
