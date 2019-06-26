@@ -2,6 +2,8 @@ import torch
 import torch.utils.checkpoint as chk
 from torch import nn
 
+from absl import logging
+
 
 class GenEncConvLayer(nn.Module):
     def __init__(self, in_c, out_c, stride=2):
@@ -23,6 +25,7 @@ class GenDecAttnBlock(nn.Module):
         self.conv = GenDecConvLayer(in_c, prev_in_c, out_c,
                                     dropout=dropout)
 
+    # TODO: This should be moved inside the attn mech itself
     def custom(self, module):
         """
         Gradient checkpoint the attention blocks as they are very
@@ -70,6 +73,41 @@ class GenDecConvLayer(nn.Module):
 
 class AttnMech(nn.Module):
     def __init__(self, in_c):
+        super().__init__()
+        self.attn_size = in_c//8
+        self.key_conv = nn.Conv2d(in_c, self.attn_size, 1)
+        self.query_conv = nn.Conv2d(in_c, self.attn_size, 1)
+        self.value_conv = nn.Conv2d(in_c, self.attn_size, 1)
+        self.up_conv = nn.Conv2d(self.attn_size, in_c, 1)
+        self.gamma = nn.Parameter(torch.Tensor([0.]))
+
+    def forward(self, source_enc_f, target_enc_f):
+        _, _, w, h = source_enc_f.shape
+        query = self.query_conv(target_enc_f)
+        key = self.key_conv(target_enc_f)
+        value = self.value_conv(target_enc_f)
+
+        query = query.view(-1, self.attn_size, w*h).transpose(1, 2)
+        key = key.view(-1, self.attn_size, w*h)
+        value = value.permute(0, 2, 3, 1).contiguous().view(-1, w*h, self.attn_size)
+
+        attn = query@key
+        attn = nn.Softmax(dim=1)(attn)
+        value = attn@value
+        value = value.view(-1, w, h, self.attn_size).permute(0, 3, 1, 2)
+        value = self.up_conv(value)
+        return target_enc_f + self.gamma * value
+
+
+class OldAttnMech(nn.Module):
+    def __init__(self, in_c):
+        """
+        I basically did not understand the idea that attention is
+        a weighted pooling. The pose should be the query and the
+        target appearance should be the key.
+        Also not fully understanding the SAGAN attn mech meant that I
+        didn't trust it for this use case. Turns out it makes sense.
+        """
         super().__init__()
         self.attn_size = in_c//8
         self.attn_out = self.attn_size

@@ -46,7 +46,7 @@ class ImageTransformer:
         """
         preprocess_worker = Thread(target=self._std_transform)
         pose_worker = Thread(target=self._pose_detection)
-        #app_worker = Thread(target=self._appearance_transer)
+        app_worker = Thread(target=self._appearance_transer)
 
         workers = [preprocess_worker, pose_worker] #, app_worker]
         for worker in workers:
@@ -118,10 +118,10 @@ class VideoTransformTrack(VideoStreamTrack):
 
         # Handle initial condition on startup.
         if IMAGE_TRANSFORMER.preprocessed_img is None or \
-           IMAGE_TRANSFORMER.pose_img is None: # or \
+           IMAGE_TRANSFORMER.pose_img is None: #or \
             return frame
-        #IMAGE_TRANSFORMER.app_img is None:
-        #return frame
+           #IMAGE_TRANSFORMER.app_img is None:
+           # return frame
 
         #if self.transform == 'appearance':
         #    out_img = IMAGE_TRANSFORMER.app_img.astype('uint8')

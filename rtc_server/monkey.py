@@ -8,8 +8,7 @@ from torchvision import transforms, models
 from pose_detector.model.model import PoseDetector
 from pose_drawer.pose_drawer import PoseDrawer
 from v_u_net.localise_joint_appearances import get_localised_joints
-from GAN.model.u_net import UNet
-
+from DeformGAN.model.generator import Generator
 
 class Monkey:
     """
@@ -21,44 +20,52 @@ class Monkey:
     pose_drawer = PoseDrawer()
 
     pose_model_base_path = 'pretrained_models/pose_detector.pt'
-    app_model_base_path = 'pretrained_models/11_05_fac_2_down_gan.pt'
+    app_model_base_path = 'pretrained_models/2306_fac_2_down.pt'
     rcnn_base_path = 'pretrained_models/keypointrcnn_resnet50_fpn_coco-9f466800.pth'
-    app_img_path = 'test_imgs/2204_asos.jpg'
+    app_img_path = 'test_imgs/2406_input_app.jpg'
+    app_pose_img_path = 'test_imgs/2406_input_app.pose.jpg'
 
     def __init__(self):
-        #pose_model = PoseDetector()
-        #if self.pose_model_base_path:
-        #    pose_model.load_state_dict(torch.load(self.pose_model_base_path))
         pose_model = models.detection.keypointrcnn_resnet50_fpn()
         pose_model.load_state_dict(torch.load(self.rcnn_base_path))
         self.pose_model = pose_model.eval()
         if self.use_cuda:
             self.pose_model = self.pose_model.cuda()
 
-        #app_model = CachedVUNet()
-        #app_model = UNet()
-        #if self.app_model_base_path:
-        #    app_model.load_state_dict(torch.load(self.app_model_base_path))
-        #self.app_model = app_model.eval()
-        #if self.use_cuda:
-        #    self.app_model = self.app_model.cuda()
+        app_model = Generator()
+        if self.app_model_base_path:
+            app_model.load_state_dict(torch.load(self.app_model_base_path))
+        self.app_model = app_model.eval()
+        if self.use_cuda:
+            self.app_model = self.app_model.cuda()
 
         # TODO: This is temporary and should be neatened up
-        # app_img_path = 'test_imgs/test_appearance_img.jpg'
-        #app_img = cv2.imread(self.app_img_path)
-        #app_img = cv2.cvtColor(app_img, cv2.COLOR_BGR2RGB)
-        #app_img = self.preprocess_img(app_img)
-        #app_img = np.asarray(app_img) / 256
+        app_img = cv2.imread(self.app_img_path)
+        app_img = cv2.cvtColor(app_img, cv2.COLOR_BGR2RGB)
+        app_img = self.preprocess_img(app_img)
+        app_img = np.asarray(app_img) / 256
         # TODO: There is lots of replication in here thats in other methods
-        # TODO: Work so this float is not needed
-        #app_tensor = transforms.ToTensor()(app_img).float()
+        app_tensor = transforms.ToTensor()(app_img).float()
 
         # Downsample as using smaller ims for now
-        #app_tensor = nn.MaxPool2d(kernel_size=2)(app_tensor)
-        #self.app_tensor = app_tensor.view(1, 3, 128, 128)
+        app_tensor = nn.MaxPool2d(kernel_size=2)(app_tensor)
+        self.app_tensor = app_tensor.view(1, 3, 128, 128)
 
-        #if self.use_cuda:
-        #    self.app_tensor = self.app_tensor.cuda()
+        # TODO: This is temporary and should be neatened up
+        app_pose_img = cv2.imread(self.app_pose_img_path)
+        app_pose_img = cv2.cvtColor(app_pose_img, cv2.COLOR_BGR2RGB)
+        app_pose_img = self.preprocess_img(app_pose_img)
+        app_pose_img = np.asarray(app_pose_img) / 256
+        # TODO: There is lots of replication in here thats in other methods
+        app_pose_tensor = transforms.ToTensor()(app_pose_img).float()
+
+        # Downsample as using smaller ims for now
+        app_pose_tensor = nn.MaxPool2d(kernel_size=2)(app_pose_tensor)
+        self.app_pose_tensor = app_pose_tensor.view(1, 3, 128, 128)
+
+        if self.use_cuda:
+            self.app_tensor = self.app_tensor.cuda()
+            self.app_pose_tensor = self.app_pose_tensor.cuda()
          #self._generate_appearance_cache(app_img)
 
     @staticmethod
@@ -96,12 +103,14 @@ class Monkey:
         pose_tensor = pose_tensor.unsqueeze(0)
 
         # Downsample as currently using smaller imgs
+        # TODO: This shouldn't be constant being put and pulled off GPU
         pose_tensor = nn.MaxPool2d(kernel_size=2)(pose_tensor)
         if self.use_cuda:
             pose_tensor = pose_tensor.cuda()
 
         with torch.no_grad():
-            gen_img = self.app_model(self.app_tensor, pose_tensor)
+            gen_img = self.app_model(self.app_tensor,
+                                     self.app_pose_tensor, pose_tensor)
 
         gen_img = gen_img.squeeze(0).permute(1, 2, 0)
         gen_img = gen_img.detach().cpu().numpy()
@@ -170,7 +179,7 @@ def extract_keypoints(pose_model_out):
     the pretrained torchvision model.
     """
     keypoints = pose_model_out[0]['keypoints'].cpu().numpy()
-    if not keypoints:
+    if keypoints is None:
         return [(0, 0) for _ in range(18)]
     keypoints = keypoints[0]
     keypoints_score = pose_model_out[0]['keypoints_scores'].cpu().numpy()[0]

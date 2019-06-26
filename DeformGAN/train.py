@@ -46,7 +46,7 @@ def train(unused_argv):
     dataset = AsosDataset(root_data_dir=FLAGS.data_dir,
                           overtrain=FLAGS.over_train)
     dataloader = DataLoader(dataset, batch_size=FLAGS.batch_size,
-                            shuffle=True, num_workers=4, pin_memory=True)
+                            shuffle=True, num_workers=3, pin_memory=True)
 
     g_optimizer = optim.Adam(generator.parameters(),
                              lr=FLAGS.learning_rate, betas=(0.0, 0.9))
@@ -80,10 +80,10 @@ def train(unused_argv):
                 target_img = target_img.cuda()
                 pose_img = pose_img.cuda()
 
-            app_img = nn.MaxPool2d(kernel_size=2)(app_img)
-            app_pose_img = nn.MaxPool2d(kernel_size=2)(app_pose_img)
-            target_img = nn.MaxPool2d(kernel_size=2)(target_img)
-            pose_img = nn.MaxPool2d(kernel_size=2)(pose_img)
+            app_img = nn.MaxPool2d(kernel_size=4)(app_img)
+            app_pose_img = nn.MaxPool2d(kernel_size=4)(app_pose_img)
+            target_img = nn.MaxPool2d(kernel_size=4)(target_img)
+            pose_img = nn.MaxPool2d(kernel_size=4)(pose_img)
 
             g_optimizer.zero_grad()
             gen_img = generator(app_img, app_pose_img, pose_img)
