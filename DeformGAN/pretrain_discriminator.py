@@ -1,63 +1,55 @@
-from os.path import join
 import pickle
+from os.path import join
 
 from absl import flags, app, logging
 import torch
 from torch import nn, optim
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
-from torchsummary import summary
-from apex import amp
 
 from DeformGAN.model.generator import Generator
+from DeformGAN.model.discriminator import Discriminator
 from DeformGAN.dataset import AsosDataset
-from DeformGAN.perceptual_loss_vgg import PerceptualLossVGG
-from DeformGAN.init_generator_from_previous import init_generator_from_previous
 from utils import (prepare_experiment_dirs,
                    get_tb_logger,
                    set_seeds)
 
 
 FLAGS = flags.FLAGS
-flags.DEFINE_string('gen_init_path', None, "Path to initialise generator from")
+flags.DEFINE_string("generator_path", None, "Which generator to train discriminator with")
 
 
 def train(unused_argv):
     """
-    Trains a network to be able to generate images from img/pose
-    pairs of asos data.
+    Pretrains a discriminator using a pretrained generator
+    before joint training.
     """
     models_path = prepare_experiment_dirs()
     logger = get_tb_logger()
     set_seeds(128)
 
-    if FLAGS.gen_init_path:
-        generator = init_generator_from_previous(FLAGS.gen_init_path)
-    else:
-        generator = Generator()
-    perceptual_loss_vgg = PerceptualLossVGG()
+    generator = Generator()
+    generator.load_state_dict(torch.load(FLAGS.generator_path))
+    discriminator = Discriminator()
     if FLAGS.use_cuda:
         generator = generator.cuda()
-        perceptual_loss_vgg = perceptual_loss_vgg.cuda()
-    perceptual_loss_vgg.eval()
-
-    summary(generator, input_size=[(3, 64, 64) for _ in range(3)])
+        discriminator = discriminator.cuda()
 
     dataset = AsosDataset(root_data_dir=FLAGS.data_dir,
                           overtrain=FLAGS.over_train)
     dataloader = DataLoader(dataset, batch_size=FLAGS.batch_size,
                             shuffle=True, num_workers=3, pin_memory=True)
 
-    g_optimizer = optim.Adam(generator.parameters(),
+    d_optimizer = optim.Adam(discriminator.parameters(),
                              lr=FLAGS.learning_rate, betas=(0.0, 0.9))
 
-    lr_scheduler = StepLR(g_optimizer, step_size=100, gamma=0.5)
+    lr_scheduler = StepLR(d_optimizer, step_size=100, gamma=0.5)
 
     step_num = 0
     if FLAGS.load_checkpoint:
         checkpoint_state = load_checkpoint()
-        generator.load_state_dict(checkpoint_state['generator'])
-        g_optimizer.load_state_dict(checkpoint_state['g_optimizer'])
+        discriminator.load_state_dict(checkpoint_state['discriminator'])
+        d_optimizer.load_state_dict(checkpoint_state['d_optimizer'])
         step_num = checkpoint_state['step_num']
 
     for epoch in range(FLAGS.num_epochs):
@@ -66,7 +58,7 @@ def train(unused_argv):
 
         if epoch % 5 == 0:
             save_path = join(models_path, '{}.pt'.format(epoch))
-            torch.save(generator.state_dict(), save_path)
+            torch.save(discriminator.state_dict(), save_path)
 
         for batch in dataloader:
             app_img = batch['app_img']
@@ -85,22 +77,28 @@ def train(unused_argv):
             target_img = nn.MaxPool2d(kernel_size=4)(target_img)
             pose_img = nn.MaxPool2d(kernel_size=4)(pose_img)
 
-            g_optimizer.zero_grad()
-            gen_img = generator(app_img, app_pose_img, pose_img)
-            l1_loss = nn.L1Loss()(gen_img, target_img)
-            perceptual_loss = 0.5 * perceptual_loss_vgg(gen_img, target_img)
-            loss = l1_loss + perceptual_loss
+            with torch.no_grad():
+                gen_img = generator(app_img, app_pose_img, pose_img)
+
+            d_optimizer.zero_grad()
+            real_score = discriminator(app_img, app_pose_img, target_img,
+                                       pose_img)
+            gen_score = discriminator(app_img, app_pose_img, gen_img,
+                                      pose_img)
+            real_loss = (nn.ReLU()(1. - real_score)).mean()
+            gen_loss = (nn.ReLU()(1. + gen_score)).mean()
+            loss = real_loss + gen_loss
             loss.backward()
-            g_optimizer.step()
+            d_optimizer.step()
 
             if step_num % FLAGS.tb_log_interval == 0:
-                log_results(epoch, step_num, logger, gen_img, loss, l1_loss, perceptual_loss)
+                log_results(step_num, logger, loss)
 
             if step_num % FLAGS.checkpoint_interval == 0:
                 # TODO: Add in lr scheduler
                 checkpoint_state = {
-                    'generator': generator.state_dict(),
-                    'g_optimizer': g_optimizer.state_dict(),
+                    'discriminator': discriminator.state_dict(),
+                    'd_optimizer': d_optimizer.state_dict(),
                     'step_num': step_num
                 }
                 save_checkpoint(checkpoint_state)
@@ -108,18 +106,12 @@ def train(unused_argv):
             step_num += 1
 
 
-def log_results(epoch, step_num, writer, gen_img, loss, l1_loss,
-                perceptual_loss):
+def log_results(step_num, writer, loss):
     """
     Log the results using tensorboardx so they can be
     viewed using a tensorboard server.
     """
-    gen_img = gen_img[0].detach().cpu()
-    img_file_name = 'generated_img/{}'.format(epoch)
-    writer.add_image(img_file_name, gen_img, step_num)
     writer.add_scalar('Train/total_loss', loss.item(), step_num)
-    writer.add_scalar('Train/l1_loss', l1_loss.item(), step_num)
-    writer.add_scalar('Train/perceptual_loss', perceptual_loss.item(), step_num)
 
 
 def save_checkpoint(checkpoint_state):

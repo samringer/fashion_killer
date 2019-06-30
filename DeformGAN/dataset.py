@@ -1,6 +1,6 @@
 from pathlib import Path
 import pickle
-from random import sample
+from random import sample, random
 
 import cv2
 import numpy as np
@@ -16,7 +16,7 @@ class AsosDataset(Dataset):
     clean asos data.
     """
 
-    def __init__(self, root_data_dir='/home/sam/data/asos/2604_clean/train/',
+    def __init__(self, root_data_dir='/home/sam/data/asos/2906_clean/train/',
                  overtrain=False):
         """
         Args:
@@ -45,13 +45,26 @@ class AsosDataset(Dataset):
         app_num, pose_num = sample(list(range(4)), 2)
 
         app_path = outfit_dir/str(app_num)
-        app_pose_path = (app_path).with_suffix('.pose.jpg')
-        target_path = outfit_dir/str(pose_num)
-        pose_path = (target_path).with_suffix('.pose.jpg')
-
         app_img = cv2.imread(app_path.as_posix())
-        app_pose_img = cv2.imread(app_pose_path.as_posix())
+        target_path = outfit_dir/str(pose_num)
         target_img = cv2.imread(target_path.as_posix())
+
+        if random() < 0.5:
+            # Randomly do an LR flip on app img
+            app_img = cv2.flip(app_img, 1)
+            app_pose_path = (app_path).with_suffix('.revpose.jpg')
+        else:
+            app_pose_path = (app_path).with_suffix('.pose.jpg')
+
+        if random() < 0.5:
+            # Randomly do an LR flip on target img
+            target_img = cv2.flip(target_img, 1)
+            pose_path = (target_path).with_suffix('.revpose.jpg')
+        else:
+            pose_path = (target_path).with_suffix('.pose.jpg')
+
+
+        app_pose_img = cv2.imread(app_pose_path.as_posix())
         pose_img = cv2.imread(pose_path.as_posix())
 
         app_img = cv2.cvtColor(app_img, cv2.COLOR_BGR2RGB)

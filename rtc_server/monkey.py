@@ -32,40 +32,40 @@ class Monkey:
         if self.use_cuda:
             self.pose_model = self.pose_model.cuda()
 
-        app_model = Generator()
-        if self.app_model_base_path:
-            app_model.load_state_dict(torch.load(self.app_model_base_path))
-        self.app_model = app_model.eval()
-        if self.use_cuda:
-            self.app_model = self.app_model.cuda()
+        #app_model = Generator()
+        #if self.app_model_base_path:
+        #    app_model.load_state_dict(torch.load(self.app_model_base_path))
+        #self.app_model = app_model.eval()
+        #if self.use_cuda:
+        #    self.app_model = self.app_model.cuda()
 
         # TODO: This is temporary and should be neatened up
-        app_img = cv2.imread(self.app_img_path)
-        app_img = cv2.cvtColor(app_img, cv2.COLOR_BGR2RGB)
-        app_img = self.preprocess_img(app_img)
-        app_img = np.asarray(app_img) / 256
+        #app_img = cv2.imread(self.app_img_path)
+        #app_img = cv2.cvtColor(app_img, cv2.COLOR_BGR2RGB)
+        #app_img = self.preprocess_img(app_img)
+        #app_img = np.asarray(app_img) / 256
         # TODO: There is lots of replication in here thats in other methods
-        app_tensor = transforms.ToTensor()(app_img).float()
+        #app_tensor = transforms.ToTensor()(app_img).float()
 
         # Downsample as using smaller ims for now
-        app_tensor = nn.MaxPool2d(kernel_size=2)(app_tensor)
-        self.app_tensor = app_tensor.view(1, 3, 128, 128)
+        #app_tensor = nn.MaxPool2d(kernel_size=2)(app_tensor)
+        #self.app_tensor = app_tensor.view(1, 3, 128, 128)
 
         # TODO: This is temporary and should be neatened up
-        app_pose_img = cv2.imread(self.app_pose_img_path)
-        app_pose_img = cv2.cvtColor(app_pose_img, cv2.COLOR_BGR2RGB)
-        app_pose_img = self.preprocess_img(app_pose_img)
-        app_pose_img = np.asarray(app_pose_img) / 256
+        #app_pose_img = cv2.imread(self.app_pose_img_path)
+        #app_pose_img = cv2.cvtColor(app_pose_img, cv2.COLOR_BGR2RGB)
+        #app_pose_img = self.preprocess_img(app_pose_img)
+        #app_pose_img = np.asarray(app_pose_img) / 256
         # TODO: There is lots of replication in here thats in other methods
-        app_pose_tensor = transforms.ToTensor()(app_pose_img).float()
+        #app_pose_tensor = transforms.ToTensor()(app_pose_img).float()
 
         # Downsample as using smaller ims for now
-        app_pose_tensor = nn.MaxPool2d(kernel_size=2)(app_pose_tensor)
-        self.app_pose_tensor = app_pose_tensor.view(1, 3, 128, 128)
+        #app_pose_tensor = nn.MaxPool2d(kernel_size=2)(app_pose_tensor)
+        #self.app_pose_tensor = app_pose_tensor.view(1, 3, 128, 128)
 
-        if self.use_cuda:
-            self.app_tensor = self.app_tensor.cuda()
-            self.app_pose_tensor = self.app_pose_tensor.cuda()
+        #if self.use_cuda:
+        #    self.app_tensor = self.app_tensor.cuda()
+        #    self.app_pose_tensor = self.app_pose_tensor.cuda()
          #self._generate_appearance_cache(app_img)
 
     @staticmethod
@@ -139,7 +139,7 @@ class Monkey:
             model_out = self.pose_model(img_tensor)
 
         keypoints = extract_keypoints(model_out)
-        return self.pose_drawer.draw_pose_from_keypoints(keypoints)
+        return self.pose_drawer.draw_pose_from_keypoints(keypoints), keypoints
 
     def _prep_app_encoder_inp(self, app_img, app_joint_pos):
         """
@@ -179,12 +179,12 @@ def extract_keypoints(pose_model_out):
     the pretrained torchvision model.
     """
     keypoints = pose_model_out[0]['keypoints'].cpu().numpy()
-    if keypoints is None:
+    if len(keypoints) == 0:
         return [(0, 0) for _ in range(18)]
     keypoints = keypoints[0]
     keypoints_score = pose_model_out[0]['keypoints_scores'].cpu().numpy()[0]
     filtered_keypoints = [tuple([256*j/800 for j in kp[:2]])
-                          if keypoints_score[i] > 0 else (0, 0)
+                          if keypoints_score[i] > 1.5 else (0, 0)
                           for i, kp in enumerate(keypoints)]
     filtered_keypoints = add_neck_keypoint(filtered_keypoints)
     return filtered_keypoints

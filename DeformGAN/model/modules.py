@@ -108,14 +108,3 @@ class AttnMech(nn.Module):
         value = value.view(-1, w, h, self.in_c).permute(0, 3, 1, 2)
         value = self.upsample(value)
         return target_enc_f + self.gamma * value
-
-
-class DisConvLayer(nn.Module):
-    def __init__(self, in_c, out_c, stride=2):
-        super().__init__()
-        self.conv = nn.Conv2d(in_c, out_c, 3, stride=stride)
-
-    def forward(self, x):
-        x = self.conv(x)
-        x = nn.ReLU()(x)
-        return x
