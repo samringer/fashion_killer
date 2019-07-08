@@ -16,7 +16,7 @@ class AsosDataset(Dataset):
     clean asos data.
     """
 
-    def __init__(self, root_data_dir='/home/sam/data/asos/2906_clean/train/',
+    def __init__(self, root_data_dir='/home/sam/data/asos/0107_clean/train/',
                  overtrain=False):
         """
         Args:
@@ -48,7 +48,6 @@ class AsosDataset(Dataset):
         app_img = cv2.imread(app_path.as_posix())
         target_path = outfit_dir/str(pose_num)
         target_img = cv2.imread(target_path.as_posix())
-
         if random() < 0.5:
             # Randomly do an LR flip on app img
             app_img = cv2.flip(app_img, 1)

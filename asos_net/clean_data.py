@@ -88,10 +88,11 @@ def get_mirror_image_keypoints(keypoints):
 
     mirrored_keypoints[16] = keypoints[17]
     mirrored_keypoints[17] = keypoints[16]
-    mirrored_keypoints = [(256-x, y) if (x, y) != (0, 0) else (x, y)
+    # 201 drops out of the way asos images are cropped by monkey
+    mirrored_keypoints = [(201-x, y) if (x, y) != (0, 0) else (x, y)
                           for x, y in mirrored_keypoints]
     return mirrored_keypoints
 
 if __name__ == "__main__":
-    dir_path = '/home/sam/data/asos/2906_clean/'
+    dir_path = '/home/sam/data/asos/0107_clean/'
     clean_asos_dir(dir_path)

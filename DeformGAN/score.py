@@ -20,8 +20,8 @@ from utils import set_seeds
 
 def score_generator_on_validation(generator):
     set_seeds()
-    val_dataset = AsosDataset(root_data_dir='/home/sam/data/asos/2604_clean/val')
-    val_dataloader = DataLoader(val_dataset, batch_size=64)
+    val_dataset = AsosDataset(root_data_dir='/home/sam/data/asos/0107_clean/val')
+    val_dataloader = DataLoader(val_dataset, batch_size=16)
 
     inception_model = inception_v3(pretrained=True,
                                    transform_input=False)
@@ -44,10 +44,10 @@ def score_generator_on_validation(generator):
         pose_img = batch['pose_img']
 
         # Downsample as in traintime
-        app_img = nn.MaxPool2d(kernel_size=4)(app_img)
-        app_pose_img = nn.MaxPool2d(kernel_size=4)(app_pose_img)
-        target_img = nn.MaxPool2d(kernel_size=4)(target_img)
-        pose_img = nn.MaxPool2d(kernel_size=4)(pose_img)
+        #app_img = nn.MaxPool2d(kernel_size=4)(app_img)
+        #app_pose_img = nn.MaxPool2d(kernel_size=4)(app_pose_img)
+        #target_img = nn.MaxPool2d(kernel_size=4)(target_img)
+        #pose_img = nn.MaxPool2d(kernel_size=4)(pose_img)
 
         if torch.cuda.is_available():
             app_img = app_img.cuda()
