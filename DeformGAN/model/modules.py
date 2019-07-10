@@ -103,7 +103,7 @@ class AttnMech(nn.Module):
         value = value.permute(0, 2, 3, 1).contiguous().view(-1, w*h, self.in_c)
 
         attn = query@key
-        attn = nn.Softmax(dim=1)(attn)
+        #attn = nn.Softmax(dim=1)(attn)
         value = attn@value
         value = value.view(-1, w, h, self.in_c).permute(0, 3, 1, 2)
         value = self.upsample(value)

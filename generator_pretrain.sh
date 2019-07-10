@@ -1,13 +1,13 @@
 #! /bin/zsh
 set -eu
 
-experiment=BIG_from_checkpoint
+experiment=BIG_no_ReLU
 learning_rate=2e-4
 batch_size=8
 over_train=False
 use_fp16=False
 num_epochs=1000
-load_checkpoint=/home/sam/experiments/DeformGAN/02_07_BIG_fixed_data/models/50.chk
+#load_checkpoint=/home/sam/experiments/DeformGAN/02_07_BIG_fixed_data/models/50.chk
 
 exp_name=$(date +"%d_%m")_${experiment}
 EXP_DIR=/home/sam/experiments/DeformGAN/${exp_name}
@@ -25,7 +25,7 @@ python -m DeformGAN.generator_pretrain \
     --learning_rate=$learning_rate \
     --over_train=$over_train \
     --use_fp16=$use_fp16 \
-    --load_checkpoint=$load_checkpoint \
     --num_epochs=$num_epochs |& tee -a ${EXP_DIR}/train.log
+    #--load_checkpoint=$load_checkpoint \
 
 ./score_experiment.sh $EXP_DIR

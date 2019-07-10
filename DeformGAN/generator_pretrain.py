@@ -5,6 +5,7 @@ from absl import flags, app, logging
 import torch
 from torch import nn, optim
 from torch.optim.lr_scheduler import StepLR
+from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader
 from torchsummary import summary
 from apex import amp
@@ -96,6 +97,7 @@ def train(unused_argv):
             if step_num % 4 == 0:
                 # Trick to increase the effective batch size
                 # By a factor of 4
+                clip_grad_norm_(generator.parameters(), 5)
                 g_optimizer.step()
                 g_optimizer.zero_grad()
 
