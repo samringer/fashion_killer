@@ -54,6 +54,15 @@ def clean_asos_dir(data_dir):
             rev_pose_img = rev_pose_img.astype('uint8')
             cv2.imwrite(str(img_path.with_suffix('.revpose.jpg')),
                         rev_pose_img)
+
+            # Save the keypoints
+            keypoints_path = img_path.with_suffix('.kp')
+            rev_keypoints_path = img_path.with_suffix('.revkp')
+            with keypoints_path.open('wb') as out_f:
+                pickle.dump(keypoints, out_f)
+            with rev_keypoints_path.open('wb') as out_f:
+                pickle.dump(mirrored_keypoints, out_f)
+
         if os.path.isdir(dir_path):
             if total_valid_keypoints < 30:
                 print("num valid keypoints = {} for {}".format(
@@ -94,5 +103,5 @@ def get_mirror_image_keypoints(keypoints):
     return mirrored_keypoints
 
 if __name__ == "__main__":
-    dir_path = '/home/sam/data/asos/0107_clean/'
+    dir_path = '/home/sam/data/asos/1307_clean/'
     clean_asos_dir(dir_path)

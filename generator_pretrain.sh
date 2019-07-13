@@ -1,13 +1,13 @@
 #! /bin/zsh
 set -eu
 
-experiment=BIG_no_ReLU
+experiment=BIG_gamma_and_final_attn_conv
 learning_rate=2e-4
-batch_size=8
+batch_size=32
 over_train=False
 use_fp16=False
 num_epochs=1000
-#load_checkpoint=/home/sam/experiments/DeformGAN/02_07_BIG_fixed_data/models/50.chk
+#load_checkpoint=/home/sam/experiments/DeformGAN/11_07_BIG_flipped_no_softmax/models/50000.chk
 
 exp_name=$(date +"%d_%m")_${experiment}
 EXP_DIR=/home/sam/experiments/DeformGAN/${exp_name}

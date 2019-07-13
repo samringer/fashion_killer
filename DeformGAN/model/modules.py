@@ -88,8 +88,9 @@ class AttnMech(nn.Module):
         self.v_conv = nn.Conv2d(in_c, in_c,
                                 kernel_size=downsample_fac,
                                 stride=downsample_fac)
-        self.upsample = nn.Upsample(scale_factor=downsample_fac)
         self.gamma = nn.Parameter(torch.Tensor([0.]))
+        self.final_conv = nn.Conv2d(in_c*2, in_c, 3, padding=1)
+        self.upsample = nn.Upsample(scale_factor=downsample_fac)
 
     def forward(self, source_enc_f, target_enc_f):
         query = self.q_conv(target_enc_f)
@@ -100,11 +101,14 @@ class AttnMech(nn.Module):
 
         query = query.view(-1, self.attn_size, w*h).transpose(1, 2)
         key = key.view(-1, self.attn_size, w*h)
-        value = value.permute(0, 2, 3, 1).contiguous().view(-1, w*h, self.in_c)
+        value = value.view(-1, self.in_c, w*h).transpose(1, 2)
 
         attn = query@key
-        #attn = nn.Softmax(dim=1)(attn)
-        value = attn@value
-        value = value.view(-1, w, h, self.in_c).permute(0, 3, 1, 2)
-        value = self.upsample(value)
-        return target_enc_f + self.gamma * value
+        attn = attn / (self.attn_size**0.5)  # Scale like transformer paper
+        attn_out = attn@value
+        attn_out = attn_out.view(-1, w, h, self.in_c).permute(0, 3, 1, 2)
+        attn_out = self.upsample(attn_out)
+        attn_out = self.gamma * attn_out
+        out = torch.cat([target_enc_f, attn_out], dim=1)
+        out = self.final_conv(out)
+        return out

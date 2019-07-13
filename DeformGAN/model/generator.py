@@ -17,7 +17,7 @@ class Generator(nn.Module):
         self.source_enc_conv_5 = GenEncConvLayer(512, 512)
         self.source_enc_conv_6 = GenEncConvLayer(512, 512)
         self.source_enc_conv_7 = GenEncConvLayer(512, 512)
-        self.source_enc_conv_8 = GenEncConvLayer(512, 512)
+        #self.source_enc_conv_8 = GenEncConvLayer(512, 512)
 
         # TODO: This stuff can be cached if rewritten
         self.target_enc_conv_1 = GenEncConvLayer(3, 64, stride=1)
@@ -27,18 +27,18 @@ class Generator(nn.Module):
         self.target_enc_conv_5 = GenEncConvLayer(512, 512)
         self.target_enc_conv_6 = GenEncConvLayer(512, 512)
         self.target_enc_conv_7 = GenEncConvLayer(512, 512)
-        self.target_enc_conv_8 = GenEncConvLayer(512, 512)
+        #self.target_enc_conv_8 = GenEncConvLayer(512, 512)
 
         self.dec_conv_1 = GenDecAttnBlock(512, 1024, 512, dropout=True)
         self.dec_conv_2 = GenDecAttnBlock(512, 512, 512, dropout=True)
-        self.dec_conv_3 = GenDecAttnBlock(512, 512, 512)
+        #self.dec_conv_3 = GenDecAttnBlock(512, 512, 512)
         self.dec_conv_4 = GenDecAttnBlock(512, 512, 512)
         self.dec_conv_5 = GenDecAttnBlock(256, 512, 256,
-                                          downsample_fac=2)
+                                          downsample_fac=1)
         self.dec_conv_6 = GenDecAttnBlock(128, 256, 128,
-                                          downsample_fac=4)
+                                          downsample_fac=2)
         self.dec_conv_7 = GenDecAttnBlock(64, 128, 64,
-                                          downsample_fac=8)
+                                          downsample_fac=4)
         self.dec_conv_8 = nn.Conv2d(64, 64, 3, stride=1, padding=1)
         self.instance_norm = nn.InstanceNorm2d(64)
         self.dec_conv_9 = nn.Conv2d(64, 3, 3, stride=1, padding=1)
@@ -52,7 +52,7 @@ class Generator(nn.Module):
         source_enc_x_5 = self.source_enc_conv_5(source_enc_x_4)
         source_enc_x_6 = self.source_enc_conv_6(source_enc_x_5)
         source_enc_x_7 = self.source_enc_conv_7(source_enc_x_6)
-        source_enc_x_8 = self.source_enc_conv_8(source_enc_x_7)
+        #source_enc_x_8 = self.source_enc_conv_8(source_enc_x_7)
 
         # TODO: This can be cached if rewritten
         target_enc_x_1 = self.target_enc_conv_1(pose_img)
@@ -62,14 +62,16 @@ class Generator(nn.Module):
         target_enc_x_5 = self.target_enc_conv_5(target_enc_x_4)
         target_enc_x_6 = self.target_enc_conv_6(target_enc_x_5)
         target_enc_x_7 = self.target_enc_conv_7(target_enc_x_6)
-        target_enc_x_8 = self.target_enc_conv_8(target_enc_x_7)
+        #target_enc_x_8 = self.target_enc_conv_8(target_enc_x_7)
 
-        #x = torch.cat([source_enc_x_6, target_enc_x_6], dim=1)
         #x = self.dec_conv_1(source_enc_x_5, target_enc_x_5, x)
-        x = torch.cat([source_enc_x_8, target_enc_x_8], dim=1)
-        x = self.dec_conv_1(source_enc_x_7, target_enc_x_7, x)
-        x = self.dec_conv_2(source_enc_x_6, target_enc_x_6, x)
-        x = self.dec_conv_3(source_enc_x_5, target_enc_x_5, x)
+        #x = torch.cat([source_enc_x_8, target_enc_x_8], dim=1)
+        x = torch.cat([source_enc_x_7, target_enc_x_7], dim=1)
+        #x = self.dec_conv_1(source_enc_x_7, target_enc_x_7, x)
+        x = self.dec_conv_1(source_enc_x_6, target_enc_x_6, x)
+        x = self.dec_conv_2(source_enc_x_5, target_enc_x_5, x)
+        #x = self.dec_conv_2(source_enc_x_6, target_enc_x_6, x)
+        #x = self.dec_conv_3(source_enc_x_5, target_enc_x_5, x)
         x = self.dec_conv_4(source_enc_x_4, target_enc_x_4, x)
         x = self.dec_conv_5(source_enc_x_3, target_enc_x_3, x)
         x = self.dec_conv_6(source_enc_x_2, target_enc_x_2, x)

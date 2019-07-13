@@ -42,7 +42,7 @@ def train(unused_argv):
         perceptual_loss_vgg = perceptual_loss_vgg.cuda()
     perceptual_loss_vgg.eval()
 
-    summary(generator, input_size=[(3, 256, 256) for _ in range(3)])
+    summary(generator, input_size=[(3, 128, 128) for _ in range(3)])
     set_seeds(257)  # Doing a summary skrews the rng so reset seeds
 
     dataset = AsosDataset(root_data_dir=FLAGS.data_dir,
@@ -83,10 +83,10 @@ def train(unused_argv):
                 target_img = target_img.cuda()
                 pose_img = pose_img.cuda()
 
-            #app_img = nn.MaxPool2d(kernel_size=4)(app_img)
-            #app_pose_img = nn.MaxPool2d(kernel_size=4)(app_pose_img)
-            #target_img = nn.MaxPool2d(kernel_size=4)(target_img)
-            #pose_img = nn.MaxPool2d(kernel_size=4)(pose_img)
+            app_img = nn.MaxPool2d(kernel_size=2)(app_img)
+            app_pose_img = nn.MaxPool2d(kernel_size=2)(app_pose_img)
+            target_img = nn.MaxPool2d(kernel_size=2)(target_img)
+            pose_img = nn.MaxPool2d(kernel_size=2)(pose_img)
 
             gen_img = generator(app_img, app_pose_img, pose_img)
             l1_loss = nn.L1Loss()(gen_img, target_img)
@@ -94,7 +94,8 @@ def train(unused_argv):
             loss = l1_loss + perceptual_loss
             loss.backward()
 
-            if step_num % 4 == 0:
+            # TODO: CHANGE THIS BACK
+            if step_num % 1 == 0:
                 # Trick to increase the effective batch size
                 # By a factor of 4
                 clip_grad_norm_(generator.parameters(), 5)
@@ -117,8 +118,7 @@ def train(unused_argv):
             step_num += 1
 
 
-def log_results(epoch, step_num, writer, gen_img, loss, l1_loss,
-                perceptual_loss):
+def log_results(epoch, step_num, writer, gen_img, loss, l1_loss, perceptual_loss):
     """
     Log the results using tensorboardx so they can be
     viewed using a tensorboard server.
