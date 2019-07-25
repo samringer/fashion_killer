@@ -23,20 +23,24 @@ class AsosDatasetTester(unittest.TestCase):
         datapoint = next(iter(self.dataset))
 
         app_img = datapoint['app_img']
+        app_pose_img = datapoint['app_pose_img']
         pose_img = datapoint['pose_img']
         target_img = datapoint['target_img']
 
         self.assertEqual(app_img.shape, torch.Size([3, 256, 256]))
-        self.assertEqual(pose_img.shape, torch.Size([3, 256, 256]))
+        self.assertEqual(app_pose_img.shape, torch.Size([21, 256, 256]))
         self.assertEqual(target_img.shape, torch.Size([3, 256, 256]))
+        self.assertEqual(pose_img.shape, torch.Size([21, 256, 256]))
 
         # Check the data is between 0-1 and not 0-256
         self.assertTrue(app_img[0, 0, 0] <= 1)
         self.assertTrue(app_img[0, 0, 0] >= 0)
-        self.assertTrue(pose_img[0, 0, 0] <= 1)
-        self.assertTrue(pose_img[0, 0, 0] >= 0)
+        self.assertTrue(app_pose_img[0, 0, 0] <= 1)
+        self.assertTrue(app_pose_img[0, 0, 0] >= 0)
         self.assertTrue(target_img[0, 0, 0] <= 1)
         self.assertTrue(target_img[0, 0, 0] >= 0)
+        self.assertTrue(pose_img[0, 0, 0] <= 1)
+        self.assertTrue(pose_img[0, 0, 0] >= 0)
 
 
 if __name__ == "__main__":

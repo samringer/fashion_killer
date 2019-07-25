@@ -26,8 +26,6 @@ class PoseSettings():
         self.joint_colors = [[i/256 for i in j]
                              for j in joint_colors_orig]
 
-        self.keypoint_from_heatmap_threshold = 0.3
-
         self.desired_connections = [
             frozenset([JointType.Neck, JointType.RightWaist]),
             frozenset([JointType.RightWaist, JointType.RightKnee]),

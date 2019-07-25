@@ -5,7 +5,6 @@ import torch
 from torch import nn
 from torchvision import transforms, models
 
-from pose_detector.model.model import PoseDetector
 from pose_drawer.pose_drawer import PoseDrawer
 from v_u_net.localise_joint_appearances import get_localised_joints
 from DeformGAN.model.generator import Generator
