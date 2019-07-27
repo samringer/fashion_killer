@@ -2,12 +2,14 @@ import cv2
 import numpy as np
 
 import torch
-from torch import nn
+from torch import nn, optim
 from torchvision import transforms, models
 
 from pose_drawer.pose_drawer import PoseDrawer
-from v_u_net.localise_joint_appearances import get_localised_joints
-from DeformGAN.model.generator import Generator
+from app_transfer.model.generator import Generator
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+use_fp16 = True
 
 class Monkey:
     """
@@ -15,28 +17,22 @@ class Monkey:
     https://jackiechanadventures.fandom.com/wiki/Monkey_Talisman
     """
 
-    use_cuda = torch.cuda.is_available()
     pose_drawer = PoseDrawer()
 
     pose_model_base_path = 'pretrained_models/pose_detector.pt'
     app_model_base_path = 'pretrained_models/2306_fac_2_down.pt'
     rcnn_base_path = 'pretrained_models/keypointrcnn_resnet50_fpn_coco-9f466800.pth'
-    app_img_path = 'test_imgs/2406_input_app.jpg'
-    app_pose_img_path = 'test_imgs/2406_input_app.pose.jpg'
 
     def __init__(self):
-        pose_model = models.detection.keypointrcnn_resnet50_fpn()
+        pose_model = models.detection.keypointrcnn_resnet50_fpn(pretrained_backbone=False)
         pose_model.load_state_dict(torch.load(self.rcnn_base_path))
-        self.pose_model = pose_model.eval()
-        if self.use_cuda:
-            self.pose_model = self.pose_model.cuda()
+        self.pose_model = pose_model.eval().to(device)
 
+        app_img_path = 'rtc_server/assets/0.png'
+        app_pose_img_path = 'rtc_server/assests/0.png.pose'
         #app_model = Generator()
-        #if self.app_model_base_path:
-        #    app_model.load_state_dict(torch.load(self.app_model_base_path))
-        #self.app_model = app_model.eval()
-        #if self.use_cuda:
-        #    self.app_model = self.app_model.cuda()
+        #app_model.load_state_dict(torch.load(self.app_model_base_path))
+        #self.app_model = app_model.to(device)
 
         # TODO: This is temporary and should be neatened up
         #app_img = cv2.imread(self.app_img_path)
@@ -49,14 +45,6 @@ class Monkey:
         # Downsample as using smaller ims for now
         #app_tensor = nn.MaxPool2d(kernel_size=2)(app_tensor)
         #self.app_tensor = app_tensor.view(1, 3, 128, 128)
-
-        # TODO: This is temporary and should be neatened up
-        #app_pose_img = cv2.imread(self.app_pose_img_path)
-        #app_pose_img = cv2.cvtColor(app_pose_img, cv2.COLOR_BGR2RGB)
-        #app_pose_img = self.preprocess_img(app_pose_img)
-        #app_pose_img = np.asarray(app_pose_img) / 256
-        # TODO: There is lots of replication in here thats in other methods
-        #app_pose_tensor = transforms.ToTensor()(app_pose_img).float()
 
         # Downsample as using smaller ims for now
         #app_pose_tensor = nn.MaxPool2d(kernel_size=2)(app_pose_tensor)
@@ -89,6 +77,30 @@ class Monkey:
         canvas[:height, :width, :] = resized_img
         return canvas
 
+    def draw_pose_from_img(self, img):
+        """
+        Args:
+            img (np array)
+        Returns:
+            pose_img (np array)
+        """
+        if img is None:
+            return
+
+        img = self.preprocess_img(img)
+        img_tensor = transforms.ToTensor()(img).float()
+        img_tensor = img_tensor.view(1, 3, 256, 256)
+        img_tensor = nn.functional.interpolate(img_tensor,
+                                               size=(800, 800))
+        img_tensor = img_tensor.to(device)
+
+        with torch.no_grad():
+            model_output = self.pose_model(img_tensor)
+
+        keypoints = extract_keypoints(model_output)
+        pose = self.pose_drawer.draw_pose_from_keypoints(keypoints)
+        return pose
+
     def transfer_appearance(self, pose_img):
         """
         This is the full shapeshift.
@@ -115,31 +127,6 @@ class Monkey:
         gen_img = gen_img.detach().cpu().numpy()
         return gen_img
 
-    def draw_pose_from_img(self, img):
-        """
-        Args:
-            img (np array)
-        Returns:
-            pose_img (np array)
-        """
-        if img is None:
-            return
-
-        img = self.preprocess_img(img)
-        img_tensor = transforms.ToTensor()(img).float()
-        img_tensor = img_tensor.view(1, 3, 256, 256)
-        img_tensor = nn.functional.interpolate(img_tensor,
-                                               size=(800, 800))
-
-        if self.use_cuda:
-            img_tensor = img_tensor.cuda()
-
-        with torch.no_grad():
-            model_out = self.pose_model(img_tensor)
-
-        keypoints = extract_keypoints(model_out)
-        return self.pose_drawer.draw_pose_from_keypoints(keypoints), keypoints
-
     def _prep_app_encoder_inp(self, app_img, app_joint_pos):
         """
         Prepares the data for input into the VUNet appearance encoder.
@@ -164,10 +151,9 @@ class Monkey:
         app_img_pose = app_img_pose.unsqueeze(0)
         localised_joints = localised_joints.unsqueeze(0)
 
-        if self.use_cuda:
-            app_img = app_img.cuda()
-            app_img_pose = app_img_pose.cuda()
-            localised_joints = localised_joints.cuda()
+        app_img = app_img.to(device)
+        app_img_pose = app_img_pose.to(device)
+        localised_joints = localised_joints.to(device)
 
         return (app_img, app_img_pose, localised_joints)
 
@@ -182,6 +168,8 @@ def extract_keypoints(pose_model_out):
         return [(0, 0) for _ in range(18)]
     keypoints = keypoints[0]
     keypoints_score = pose_model_out[0]['keypoints_scores'].cpu().numpy()[0]
+    # 1.5 is arbritrarily chosen threshold
+    # Pose detector outputs in 800x800 coordinated but we want 256x256
     filtered_keypoints = [tuple([256*j/800 for j in kp[:2]])
                           if keypoints_score[i] > 1.5 else (0, 0)
                           for i, kp in enumerate(keypoints)]
@@ -191,7 +179,7 @@ def extract_keypoints(pose_model_out):
 
 def add_neck_keypoint(keypoints):
     """
-    COCO by default does not contain a neck keypoint.
+    PyTorch pose detector does not return a neck keypoint.
     This function adds it in as an average of the left
     and right shoulders if both are found, (0, 0) otherwise.
     Args:

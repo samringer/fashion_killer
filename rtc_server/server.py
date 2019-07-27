@@ -63,7 +63,7 @@ class ImageTransformer:
             # TODO: sort out
             # WebRTC wants in range 0-256
             # if self.in_img is not None:
-            #    self.preprocessed_img *= 256
+                #    self.preprocessed_img *= 256
 
     def _pose_detection(self):
         """
@@ -71,17 +71,17 @@ class ImageTransformer:
         Used for both pose extraction and appearance transfer.
         """
         while True:
-            #start_time = datetime.now()
+            start_time = datetime.now()
             input_img = None
             if self.in_img is not None:
                 input_img = self.in_img / 256
-            pose_img = self.monkey.draw_pose_from_img(input_img)
+                pose_img = self.monkey.draw_pose_from_img(input_img)
 
             # WebRTC wants in range 0-256
             if pose_img is not None:
                 self.pose_img = pose_img * 256
-            #delay = (datetime.now() - start_time).total_seconds()
-            #print("{:.1f} frames per second".format(1/delay))
+                delay = (datetime.now() - start_time).total_seconds()
+                print("{:.1f} frames per second".format(1/delay))
 
     def _appearance_transer(self):
         """
@@ -91,7 +91,7 @@ class ImageTransformer:
             input_pose = None
             if self.pose_img is not None:
                 input_pose = self.pose_img / 256
-            app_img = self.monkey.transfer_appearance(input_pose)
+                app_img = self.monkey.transfer_appearance(input_pose)
 
             # WebRTC wants in range 0-256
             if app_img is not None:
@@ -99,8 +99,8 @@ class ImageTransformer:
 
 
 # Start the threads going as soon as possible in the global scope
-IMAGE_TRANSFORMER = ImageTransformer()
-IMAGE_TRANSFORMER.start_threads()
+#IMAGE_TRANSFORMER = ImageTransformer()
+#IMAGE_TRANSFORMER.start_threads()
 
 
 class VideoTransformTrack(VideoStreamTrack):
@@ -111,20 +111,20 @@ class VideoTransformTrack(VideoStreamTrack):
 
     async def recv(self):
         frame = await self.track.recv()
+        return frame
 
         # Only have one track (the standard one) setting the input image
         if self.transform not in ['appearance', 'pose']:
             IMAGE_TRANSFORMER.in_img = frame.to_ndarray(format='rgb24')
 
         # Handle initial condition on startup.
-        if IMAGE_TRANSFORMER.preprocessed_img is None or \
-           IMAGE_TRANSFORMER.pose_img is None: #or \
-            return frame
-           #IMAGE_TRANSFORMER.app_img is None:
-           # return frame
+        if IMAGE_TRANSFORMER.preprocessed_img is None or IMAGE_TRANSFORMER.pose_img is None: #or \
+           return frame
+        #IMAGE_TRANSFORMER.app_img is None:
+            # return frame
 
         #if self.transform == 'appearance':
-        #    out_img = IMAGE_TRANSFORMER.app_img.astype('uint8')
+            #    out_img = IMAGE_TRANSFORMER.app_img.astype('uint8')
         if self.transform == 'pose':
             out_img = IMAGE_TRANSFORMER.pose_img.astype('uint8')
         else:
@@ -204,6 +204,15 @@ async def on_shutdown(app):
     pcs.clear()
 
 
+async def switch_app_img(request):
+    params = await request.json()
+    IMAGE_TRANSFORMER.monkey
+    print(params['img_name'])
+    return web.Response(
+        content_type='application/json',
+        )
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--cert-file', help='SSL certificate file (for HTTPS)')
@@ -227,8 +236,10 @@ if __name__ == '__main__':
     app = web.Application()
     app.on_shutdown.append(on_shutdown)
     app.router.add_get('/', index)
+    app.router.add_static('/assets/', path=os.path.join(ROOT, 'assets'))
     app.router.add_get('/client.js', javascript)
     app.router.add_post('/offer_original', offer)
     app.router.add_post('/offer_pose', offer)
     app.router.add_post('/offer_appearance', offer)
+    app.router.add_post('/switch_app_img', switch_app_img)
     web.run_app(app, access_log=None, port=args.port, ssl_context=ssl_context)

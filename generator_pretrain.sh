@@ -1,7 +1,8 @@
 #! /bin/zsh
 set -eu
 
-experiment=attn_kernel_size_always_1
+# Notes:
+experiment=TEST
 learning_rate=1e-4
 batch_size=32
 over_train=False

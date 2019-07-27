@@ -6,7 +6,7 @@ pytest_args:= -v -s --color=yes --junit-xml ut_results.xml --cov-report=html:$(c
 
 check:
 	pyflakes . unittests functests
-	pycodestyle . unittests functests --exclude=asos_scrapper
+	pycodestyle . unittests functests --exclude=prepare_asos_data
 	pylint -j2 -E . unittests functests
 
 test: unittest functest

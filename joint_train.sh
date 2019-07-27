@@ -1,17 +1,16 @@
 #! /bin/zsh
 set -eu
 
-experiment=128x128_joint_train_from_chk
-generator_lr=8e-6
+experiment=64x64_joint
+generator_lr=2e-5
 discriminator_lr=2e-4
 batch_size=32
 over_train=False
 use_fp16=False
 num_epochs=100
 
-generator_path=/home/sam/experiments/app_transfer/22_07_BIG_128_128_g_pretrain_2/models/10.pt
-discriminator_path=/home/sam/experiments/app_transfer/22_07_128x128_discriminator_pretrain/models/final.pt
-load_checkpoint=/home/sam/experiments/app_transfer/23_07_128x128_joint_train/models/90000.chk
+generator_path=/home/sam/experiments/app_transfer/26_07_TEST/models/5.pt
+discriminator_path=/home/sam/experiments/app_transfer/26_07_64x64_dis_pretrain/models/final.pt
 
 exp_name=$(date +"%d_%m")_${experiment}
 EXP_DIR=/home/sam/experiments/app_transfer/${exp_name}
@@ -32,5 +31,5 @@ python -m app_transfer.joint_train \
     --use_fp16=$use_fp16 \
     --generator_path=$generator_path \
     --discriminator_path=$discriminator_path \
-    --load_checkpoint=$load_checkpoint \
     --num_epochs=$num_epochs |& tee -a ${EXP_DIR}/train.log
+    #--load_checkpoint=$load_checkpoint \

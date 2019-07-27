@@ -9,6 +9,7 @@ import torch
 from tensorboardX import SummaryWriter
 
 FLAGS = flags.FLAGS
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 flags.DEFINE_string('task_path', None, "Path to save directory of task.")
 flags.DEFINE_string('exp_name', None, "Name of the experiment being run")
@@ -106,3 +107,11 @@ def set_seeds(seed=42):
     np.random.seed(seed)
     torch.manual_seed(seed)
     random.seed(seed)
+
+
+def load_model(model_path):
+    try:
+        model = torch.load(model_path)
+    except RuntimeError:
+        model = torch.load(model_path, map_location="cpu")
+    return model

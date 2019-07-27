@@ -46,10 +46,24 @@
 		float: left; 
 	}
 
+	/* Three image containers (use 25% for four, and 50% for two, etc) */
+	.column {
+	  float: left;
+	  width: 10%;
+	  padding: 5px;
+	}
+
+	/* Clear floats after image containers */
+	.row::after {
+	  content: "";
+	  clear: both;
+	  display: table;
+	}
+
 
     </style>
 </head>
-<body>
+<body onload="start()">
 
 <h2>Options</h2>
 <div class="option">
@@ -64,15 +78,33 @@
     </select>
 </div>
 
-<button id="start" onclick="start()">Start</button>
-<button id="stop" style="display: none" onclick="stop()">Stop</button>
+<!-- <button id="start" onclick="start()">Start</button> -->
+<!-- <button id="stop" style="display: none" onclick="stop()">Stop</button>.-->
 
 <div id="media" style="display: none">
-    <h2>Media</h2>
     <video id="original-video" autoplay="true"></video>
     <video id="pose-video" autoplay="true"></video>
-    <video id="appearance-video" autoplay="true"></video>
+	<img id="appearance-video" src="" alt="asdf">
+    <!--video id="appearance-video" autoplay="true"></video>-->
 </div>
+
+<div class="row">
+    <div class="column">
+        <img src="/assets/1.png" onclick="switch_app_img('1.png')" width="100" alt="2">
+    </div>
+    <div class="column">
+        <img src="/assets/2.png" onclick="switch_app_img('2.png')" width="100" alt="2">
+    </div>
+    <div class="column">
+        <img src="/assets/3.png" onclick="switch_app_img('3.png')" width="100" alt="2">
+    </div>
+    <div class="column">
+        <img src="/assets/4.png" onclick="switch_app_img('4.png')" width="100" alt="2">
+    </div>
+    <div class="column">
+        <img src="/assets/5.png" onclick="switch_app_img('5.png')" width="100" alt="2">
+    </div>
+</body>
 
 <script src="client.js"></script>
 </body>

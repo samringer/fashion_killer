@@ -1,6 +1,7 @@
 // peer connection
-var pc_original = null;
-var pc_pose = null;
+pc_original = null;
+pc_pose = null;
+current_img = "1";
 // var pc_appearance = null;
 pcs = [pc_original, pc_pose] //, pc_appearance];
 
@@ -74,7 +75,7 @@ function negotiate(pc, transform) {
 
 
 function start() {
-    document.getElementById('start').style.display = 'none';
+    // document.getElementById('start').style.display = 'none';
     pc_original = createPeerConnection('original');
     pc_pose = createPeerConnection('pose');
     // pc_appearance = createPeerConnection('appearance');
@@ -128,6 +129,21 @@ function start() {
     }
 
     document.getElementById('stop').style.display = 'inline-block';
+}
+
+
+function switch_app_img(img_name) {
+	var image_path = "/assets/" + img_name
+	document.getElementById('appearance-video').src = image_path
+	return fetch('/switch_app_img', {
+		body: JSON.stringify({
+            img_name: img_name
+		}),
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		method: 'POST'
+	});
 }
 
 

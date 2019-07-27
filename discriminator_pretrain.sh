@@ -1,13 +1,13 @@
 #! /bin/zsh
 set -eu
 
-experiment=128x128_discriminator_pretrain
+experiment=64x64_dis_pretrain
 learning_rate=1e-4
 batch_size=32
 over_train=False
 use_fp16=False
 num_epochs=500
-generator_path=/home/sam/experiments/app_transfer/22_07_BIG_128_128_g_pretrain_2/models/10.pt
+generator_path=/home/sam/experiments/app_transfer/26_07_TEST/models/5.pt
 
 exp_name=$(date +"%d_%m")_${experiment}
 EXP_DIR=/home/sam/experiments/app_transfer/${exp_name}
