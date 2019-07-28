@@ -20,9 +20,9 @@ class ConvBlock(nn.Module):
 
 
 class GenDecAttnBlock(nn.Module):
-    def __init__(self, in_c, prev_in_c, out_c):
+    def __init__(self, in_c, prev_in_c, out_c, num_heads=4):
         super().__init__()
-        self.attn_mech = AttnMech(in_c)
+        self.attn_mech = AttnMech(in_c, num_heads)
         self.conv = ConvBlock(in_c+prev_in_c, out_c)
 
     def custom(self, module):
@@ -57,26 +57,36 @@ class GenDecConvBlock(nn.Module):
 
 
 class AttnMech(nn.Module):
-    def __init__(self, in_c):
+    def __init__(self, in_c, num_heads=4):
         """
-        num heads = 4
+        So far only the hacky option of 2 or for heads is supported.
+        Not attn_c is always taken to be in_c//4, regardless of the num
+        of heads. This is to make things fit in memory for two headed situtaion.
         """
         super().__init__()
-        num_heads = 4
-        self.attn_head_1 = SingleAttnHead(in_c, in_c//num_heads)
-        self.attn_head_2 = SingleAttnHead(in_c, in_c//num_heads)
-        self.attn_head_3 = SingleAttnHead(in_c, in_c//num_heads)
-        self.attn_head_4 = SingleAttnHead(in_c, in_c//num_heads)
+        self.num_heads = num_heads
+        self.attn_head_1 = SingleAttnHead(in_c, in_c//4)
+        self.attn_head_2 = SingleAttnHead(in_c, in_c//4)
+        if num_heads == 4:
+            self.attn_head_3 = SingleAttnHead(in_c, in_c//4)
+            self.attn_head_4 = SingleAttnHead(in_c, in_c//4)
+            self.final_conv = nn.Conv2d(2*in_c, in_c, 1)
+        elif num_heads == 2:
+            self.final_conv = nn.Conv2d(in_c + in_c//2, in_c, 1)
+        else:
+            raise RuntimeError("Only two or four heads supported")
 
-        self.final_conv = nn.Conv2d(in_c*2, in_c, 1)
 
     def forward(self, app_enc, app_pose_enc, pose_enc):
         attn_out_1 = self.attn_head_1(app_enc, app_pose_enc, pose_enc)
         attn_out_2 = self.attn_head_2(app_enc, app_pose_enc, pose_enc)
-        attn_out_3 = self.attn_head_3(app_enc, app_pose_enc, pose_enc)
-        attn_out_4 = self.attn_head_4(app_enc, app_pose_enc, pose_enc)
-
-        out = torch.cat([pose_enc, attn_out_1, attn_out_2, attn_out_3, attn_out_4], dim=1)
+        if self.num_heads == 4:
+            attn_out_3 = self.attn_head_3(app_enc, app_pose_enc, pose_enc)
+            attn_out_4 = self.attn_head_4(app_enc, app_pose_enc, pose_enc)
+            out = torch.cat([pose_enc, attn_out_1, attn_out_2,
+                             attn_out_3, attn_out_4], dim=1)
+        else:
+            out = torch.cat([pose_enc, attn_out_1, attn_out_2], dim=1)
         out = self.final_conv(out)
         return out
 

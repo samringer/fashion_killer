@@ -72,18 +72,10 @@ class AsosDataset(Dataset):
         app_pose_img = cv2.imread(app_pose_path.as_posix())
         pose_img = cv2.imread(pose_path.as_posix())
 
-        app_img = cv2.cvtColor(app_img, cv2.COLOR_BGR2RGB)
-        app_pose_img = cv2.cvtColor(app_pose_img, cv2.COLOR_BGR2RGB)
-        target_img = cv2.cvtColor(target_img, cv2.COLOR_BGR2RGB)
-        pose_img = cv2.cvtColor(pose_img, cv2.COLOR_BGR2RGB)
-
         app_img = preprocess_img(app_img)
+        app_pose_img = preprocess_img(app_pose_img)
         target_img = preprocess_img(target_img)
-
-        app_img = ToTensor()(np.asarray(app_img) / 256)
-        app_pose_img = ToTensor()(np.asarray(app_pose_img) / 256)
-        target_img = ToTensor()(np.asarray(target_img) / 256)
-        pose_img = ToTensor()(np.asarray(pose_img) / 256)
+        pose_img = preprocess_img(pose_img)
 
         # Prepare the keypoint heatmaps and cat to pose imgs
         with app_kp_path.open('rb') as in_f:
@@ -97,24 +89,26 @@ class AsosDataset(Dataset):
         app_pose_img = torch.cat([app_pose_img, app_hms])
         pose_img = torch.cat([pose_img, target_hms])
 
-        return {'app_img': app_img.float(),
-                'app_pose_img': app_pose_img.float(),
-                'target_img': target_img.float(),
-                'pose_img': pose_img.float()}
+        return {'app_img': app_img,
+                'app_pose_img': app_pose_img,
+                'target_img': target_img,
+                'pose_img': pose_img}
 
 
 def preprocess_img(img):
     """
     Resized an image and pads it so final size
     is 256x256.
+    Also handles all the cv2 preprocessing needed.
     Args:
         img (np array)
     Returns:
-        canvas (np array): 256x256x3 image of preprocessed img.
+        canvas (PyTorch tensor): preprocessed img.
     """
     if img is None:
         return
 
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     img_width, img_height, _ = img.shape
     current_max_dim = max(img_width, img_height)
     scale_factor = 256 / current_max_dim
@@ -122,6 +116,7 @@ def preprocess_img(img):
     height, width, _ = resized_img.shape
     canvas = np.zeros([256, 256, 3])
     canvas[:height, :width, :] = resized_img
+    canvas = ToTensor()(np.asarray(canvas) / 256).float()
     return canvas
 
 
@@ -140,6 +135,8 @@ def generate_kp_heatmaps(kps):
         if keypoint == (0, 0):
             continue
         # TODO: Not sure where this error originated
+        # TODO: Need to track this bug down as means I have to hack
+        # monkey to compensate
         keypoint = (201 - keypoint[0], keypoint[1])
 
         x, y = np.arange(0, 256), np.arange(0, 256)
@@ -147,4 +144,4 @@ def generate_kp_heatmaps(kps):
         xx, yy = xx - keypoint[0], yy - keypoint[1]
         z = np.exp(-(np.sqrt(np.square(xx) + np.square(yy))/np.square(sigma)))
         kp_tensor[i] = torch.from_numpy(z)
-    return kp_tensor.double()
+    return kp_tensor.float()

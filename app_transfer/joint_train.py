@@ -8,13 +8,12 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader
 
-from app_transfer.model.generator import Generator
-from app_transfer.model.discriminator import Discriminator
 from app_transfer.dataset import AsosDataset
 from app_transfer.perceptual_loss_vgg import PerceptualLossVGG
 from utils import (prepare_experiment_dirs,
                    get_tb_logger,
-                   set_seeds)
+                   set_seeds,
+                   device)
 
 FLAGS = flags.FLAGS
 
@@ -33,16 +32,11 @@ def train(unused_argv):
     logger = get_tb_logger()
     set_seeds(131)
 
-    generator = Generator()
-    generator.load_state_dict(torch.load(FLAGS.generator_path))
-    discriminator = Discriminator()
-    discriminator.load_state_dict(torch.load(FLAGS.discriminator_path))
-    perc_loss_vgg = PerceptualLossVGG()
-    if FLAGS.use_cuda:
-        generator = generator.cuda()
-        discriminator = discriminator.cuda()
-        perc_loss_vgg = perc_loss_vgg.cuda()
-    perc_loss_vgg.eval()
+    generator = torch.load(FLAGS.generator_path).to(device)
+    discriminator = torch.load(FLAGS.discriminator_path).to(device)
+    # TODO: Update this if necessary
+    #perc_loss_vgg = PerceptualLossVGG().to(device)
+    #perc_loss_vgg.eval()
 
     dataset = AsosDataset(root_data_dir=FLAGS.data_dir,
                           overtrain=FLAGS.over_train)
@@ -69,7 +63,7 @@ def train(unused_argv):
         # Save a generator every 5 epochs
         if epoch % 5 == 0:
             save_path = join(models_path, '{}.pt'.format(epoch))
-            torch.save(generator.state_dict(), save_path)
+            torch.save(generator, save_path)
 
         for i, batch in enumerate(dataloader):
             batch = _prepare_batch_data(batch)
@@ -135,16 +129,10 @@ def train(unused_argv):
 
 
 def _prepare_batch_data(batch):
-    app_img = batch['app_img']
-    app_pose_img = batch['app_pose_img']
-    target_img = batch['target_img']
-    pose_img = batch['pose_img']
-
-    if FLAGS.use_cuda:
-        app_img = app_img.cuda()
-        app_pose_img = app_pose_img.cuda()
-        target_img = target_img.cuda()
-        pose_img = pose_img.cuda()
+    app_img = batch['app_img'].to(device)
+    app_pose_img = batch['app_pose_img'].to(device)
+    target_img = batch['target_img'].to(device)
+    pose_img = batch['pose_img'].to(device)
 
     app_img = nn.MaxPool2d(kernel_size=4)(app_img)
     app_pose_img = nn.MaxPool2d(kernel_size=4)(app_pose_img)

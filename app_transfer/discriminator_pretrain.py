@@ -7,12 +7,12 @@ from torch import nn, optim
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 
-from app_transfer.model.generator import Generator
 from app_transfer.model.discriminator import Discriminator
 from app_transfer.dataset import AsosDataset
 from utils import (prepare_experiment_dirs,
                    get_tb_logger,
-                   set_seeds)
+                   set_seeds,
+                   device)
 
 
 FLAGS = flags.FLAGS
@@ -28,12 +28,8 @@ def train(unused_argv):
     logger = get_tb_logger()
     set_seeds(128)
 
-    generator = Generator()
-    generator.load_state_dict(torch.load(FLAGS.generator_path))
-    discriminator = Discriminator()
-    if FLAGS.use_cuda:
-        generator = generator.cuda()
-        discriminator = discriminator.cuda()
+    generator = torch.load(FLAGS.generator_path).to(device)
+    discriminator = Discriminator().to(device)
 
     dataset = AsosDataset(root_data_dir=FLAGS.data_dir,
                           overtrain=FLAGS.over_train)
@@ -59,19 +55,13 @@ def train(unused_argv):
         for batch in dataloader:
             if step_num >= 800:
                 save_path = join(models_path, 'final.pt')
-                torch.save(discriminator.state_dict(), save_path)
+                torch.save(discriminator, save_path)
                 return
 
-            app_img = batch['app_img']
-            app_pose_img = batch['app_pose_img']
-            target_img = batch['target_img']
-            pose_img = batch['pose_img']
-
-            if FLAGS.use_cuda:
-                app_img = app_img.cuda()
-                app_pose_img = app_pose_img.cuda()
-                target_img = target_img.cuda()
-                pose_img = pose_img.cuda()
+            app_img = batch['app_img'].to(device)
+            app_pose_img = batch['app_pose_img'].to(device)
+            target_img = batch['target_img'].to(device)
+            pose_img = batch['pose_img'].to(device)
 
             app_img = nn.MaxPool2d(kernel_size=4)(app_img)
             app_pose_img = nn.MaxPool2d(kernel_size=4)(app_pose_img)

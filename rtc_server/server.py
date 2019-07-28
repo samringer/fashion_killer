@@ -1,9 +1,13 @@
 import argparse
 from datetime import datetime
+from pathlib import Path
 import asyncio
 import json
 import logging
 import os
+from os.path import join
+import cv2
+import numpy as np
 import ssl
 import uuid
 from threading import Thread
@@ -23,12 +27,14 @@ logger = logging.getLogger('pc')
 pcs = set()
 
 
-class ImageTransformer:
+class ImageThreadRunner:
     """
     Runs all the transformations in threads that VideoTransformTrack
     can then pull required data from.
     Makes things more efficient as GPU doesn't have to recalculate
     anything.
+    Big assumption here is that monkey always wants 0-1 but rtc always
+    wants 0-256
     """
     def __init__(self):
         # Placeholders
@@ -36,6 +42,7 @@ class ImageTransformer:
         self.preprocessed_img = None
         self.pose_img = None
         self.app_img = None
+        self.kps = None
 
         self.monkey = Monkey()
 
@@ -48,7 +55,7 @@ class ImageTransformer:
         pose_worker = Thread(target=self._pose_detection)
         app_worker = Thread(target=self._appearance_transer)
 
-        workers = [preprocess_worker, pose_worker] #, app_worker]
+        workers = [preprocess_worker, pose_worker, app_worker]
         for worker in workers:
             worker.setDaemon(True)
             worker.start()
@@ -59,11 +66,20 @@ class ImageTransformer:
         It only performs the monkey preprocessing on the image.
         """
         while True:
-            self.preprocessed_img = self.monkey.preprocess_img(self.in_img)
-            # TODO: sort out
-            # WebRTC wants in range 0-256
-            # if self.in_img is not None:
-                #    self.preprocessed_img *= 256
+            if self.in_img is None:
+                continue
+            img_width, img_height, _ = self.in_img.shape
+            current_max_dim = min(img_width, img_height)
+            scale_factor = 256 / current_max_dim
+            resized_img = cv2.resize(self.in_img, None, fx=scale_factor,
+                                     fy=scale_factor)
+            # Crop taking the image from the centre
+            cropped_img = resized_img[:, 100:301, :]
+            cropped_img = cv2.flip(cropped_img, 1)
+            height, width, _ = cropped_img.shape
+            canvas = np.zeros([256, 256, 3])
+            canvas[:height, :width, :] = cropped_img
+            self.preprocessed_img = canvas
 
     def _pose_detection(self):
         """
@@ -71,36 +87,40 @@ class ImageTransformer:
         Used for both pose extraction and appearance transfer.
         """
         while True:
-            start_time = datetime.now()
-            input_img = None
-            if self.in_img is not None:
-                input_img = self.in_img / 256
-                pose_img = self.monkey.draw_pose_from_img(input_img)
+            #start_time = datetime.now()
+            inp_img = None
+            if self.preprocessed_img is not None:
+                inp_img = self.preprocessed_img / 256
+            pose_img, self.kps = self.monkey.draw_pose_from_img(inp_img)
 
             # WebRTC wants in range 0-256
             if pose_img is not None:
                 self.pose_img = pose_img * 256
-                delay = (datetime.now() - start_time).total_seconds()
-                print("{:.1f} frames per second".format(1/delay))
+            #delay = (datetime.now() - start_time).total_seconds()
+            #print("{:.1f} pose frames per second".format(1/delay))
 
     def _appearance_transer(self):
         """
         Uses the pose image to perform appearance transfer.
         """
         while True:
+            #start_time = datetime.now()
             input_pose = None
             if self.pose_img is not None:
                 input_pose = self.pose_img / 256
-                app_img = self.monkey.transfer_appearance(input_pose)
+            app_img = self.monkey.transfer_appearance(input_pose,
+                                                      self.kps)
 
             # WebRTC wants in range 0-256
             if app_img is not None:
                 self.app_img = app_img * 256
+            #delay = (datetime.now() - start_time).total_seconds()
+            #print("{:.1f} app frames per second".format(1/delay))
 
 
 # Start the threads going as soon as possible in the global scope
-#IMAGE_TRANSFORMER = ImageTransformer()
-#IMAGE_TRANSFORMER.start_threads()
+IMAGE_THREAD_RUNNER = ImageThreadRunner()
+IMAGE_THREAD_RUNNER.start_threads()
 
 
 class VideoTransformTrack(VideoStreamTrack):
@@ -111,27 +131,28 @@ class VideoTransformTrack(VideoStreamTrack):
 
     async def recv(self):
         frame = await self.track.recv()
-        return frame
 
         # Only have one track (the standard one) setting the input image
         if self.transform not in ['appearance', 'pose']:
-            IMAGE_TRANSFORMER.in_img = frame.to_ndarray(format='rgb24')
+            IMAGE_THREAD_RUNNER.in_img = frame.to_ndarray(format='rgb24')
 
         # Handle initial condition on startup.
-        if IMAGE_TRANSFORMER.preprocessed_img is None or IMAGE_TRANSFORMER.pose_img is None: #or \
-           return frame
-        #IMAGE_TRANSFORMER.app_img is None:
-            # return frame
+        if IMAGE_THREAD_RUNNER.preprocessed_img is None:
+            return frame
+        if IMAGE_THREAD_RUNNER.pose_img is None:
+            return frame
+        if IMAGE_THREAD_RUNNER.app_img is None:
+            return frame
 
-        #if self.transform == 'appearance':
-            #    out_img = IMAGE_TRANSFORMER.app_img.astype('uint8')
-        if self.transform == 'pose':
-            out_img = IMAGE_TRANSFORMER.pose_img.astype('uint8')
+        if self.transform == 'appearance':
+            out_img = IMAGE_THREAD_RUNNER.app_img.astype('uint8')
+        elif self.transform == 'pose':
+            out_img = IMAGE_THREAD_RUNNER.pose_img.astype('uint8')
         else:
-            out_img = IMAGE_TRANSFORMER.preprocessed_img.astype('uint8')
+            out_img = IMAGE_THREAD_RUNNER.preprocessed_img.astype('uint8')
 
         # rebuild a VideoFrame, preserving timing information
-        # Note that this expects array to be of datatype uint8
+        # Expects array to be type uint8
         new_frame = VideoFrame.from_ndarray(out_img, format='rgb24')
         new_frame.pts = frame.pts
         new_frame.time_base = frame.time_base
@@ -139,12 +160,12 @@ class VideoTransformTrack(VideoStreamTrack):
 
 
 async def index(request):
-    content = open(os.path.join(ROOT, 'index.html'), 'r').read()
+    content = open(join(ROOT, 'index.html'), 'r').read()
     return web.Response(content_type='text/html', text=content)
 
 
 async def javascript(request):
-    content = open(os.path.join(ROOT, 'client.js'), 'r').read()
+    content = open(join(ROOT, 'client.js'), 'r').read()
     return web.Response(content_type='application/javascript', text=content)
 
 
@@ -163,10 +184,6 @@ async def offer(request):
 
     log_info('Created for %s', request.remote)
 
-    # prepare local media
-    # TODO: Check if 'recorder' can be removed
-    recorder = MediaBlackhole()
-
     @pc.on('track')
     def on_track(track):
         log_info('Track %s received', track.kind)
@@ -179,11 +196,9 @@ async def offer(request):
         @track.on('ended')
         async def on_ended():
             log_info('Track %s ended', track.kind)
-            await recorder.stop()
 
     # handle offer
     await pc.setRemoteDescription(offer)
-    await recorder.start()
 
     # send answer
     answer = await pc.createAnswer()
@@ -206,8 +221,8 @@ async def on_shutdown(app):
 
 async def switch_app_img(request):
     params = await request.json()
-    IMAGE_TRANSFORMER.monkey
-    print(params['img_name'])
+    new_app_img_root = Path('rtc_server')/'assets'/params['img_name']
+    IMAGE_THREAD_RUNNER.monkey.load_appearance_img(new_app_img_root)
     return web.Response(
         content_type='application/json',
         )
@@ -236,7 +251,7 @@ if __name__ == '__main__':
     app = web.Application()
     app.on_shutdown.append(on_shutdown)
     app.router.add_get('/', index)
-    app.router.add_static('/assets/', path=os.path.join(ROOT, 'assets'))
+    app.router.add_static('/assets/', path=join(ROOT, 'assets'))
     app.router.add_get('/client.js', javascript)
     app.router.add_post('/offer_original', offer)
     app.router.add_post('/offer_pose', offer)

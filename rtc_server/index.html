@@ -60,6 +60,11 @@
 	  display: table;
 	}
 
+    .app_img {
+        width: 100px;
+        height: 130px;
+    }
+
 
     </style>
 </head>
@@ -78,31 +83,33 @@
     </select>
 </div>
 
-<!-- <button id="start" onclick="start()">Start</button> -->
-<!-- <button id="stop" style="display: none" onclick="stop()">Stop</button>.-->
-
 <div id="media" style="display: none">
     <video id="original-video" autoplay="true"></video>
     <video id="pose-video" autoplay="true"></video>
-	<img id="appearance-video" src="" alt="asdf">
-    <!--video id="appearance-video" autoplay="true"></video>-->
+    <video id="appearance-video" autoplay="true"></video>
 </div>
 
 <div class="row">
     <div class="column">
-        <img src="/assets/1.png" onclick="switch_app_img('1.png')" width="100" alt="2">
+        <img src="/assets/0.jpg" onclick="switch_app_img('0')" class="app_img" alt="0">
     </div>
     <div class="column">
-        <img src="/assets/2.png" onclick="switch_app_img('2.png')" width="100" alt="2">
+        <img src="/assets/1.jpg" onclick="switch_app_img('1')" class="app_img" alt="1">
     </div>
     <div class="column">
-        <img src="/assets/3.png" onclick="switch_app_img('3.png')" width="100" alt="2">
+        <img src="/assets/2.jpg" onclick="switch_app_img('2')" class="app_img" alt="2">
     </div>
     <div class="column">
-        <img src="/assets/4.png" onclick="switch_app_img('4.png')" width="100" alt="2">
+        <img src="/assets/3.jpg" onclick="switch_app_img('3')" class="app_img" alt="3">
     </div>
     <div class="column">
-        <img src="/assets/5.png" onclick="switch_app_img('5.png')" width="100" alt="2">
+        <img src="/assets/4.jpg" onclick="switch_app_img('4')" class="app_img" alt="4">
+    </div>
+    <div class="column">
+        <img src="/assets/5.jpg" onclick="switch_app_img('5')" class="app_img" alt="5">
+    </div>
+    <div class="column">
+        <img src="/assets/6.jpg" onclick="switch_app_img('6')" class="app_img" alt="6">
     </div>
 </body>
 

@@ -1,10 +1,12 @@
 #! /bin/zsh
 set -eu
 
-# Notes:
-experiment=TEST
-learning_rate=1e-4
-batch_size=32
+# Notes: https://github.com/leftthomas/SRGAN/blob/master/loss.py
+# Find it strange they use a no grad clause
+# Using two heads for attn5 but all four heads for attn4
+experiment=get_placeholder_2
+learning_rate=1e-3
+batch_size=8
 over_train=False
 use_fp16=False
 num_epochs=1000

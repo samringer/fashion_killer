@@ -1,81 +1,67 @@
 import cv2
+import pickle
+from pathlib import Path
 import numpy as np
 
 import torch
 from torch import nn, optim
-from torchvision import transforms, models
+from torchvision import transforms
+from torchvision.models.detection import keypointrcnn_resnet50_fpn
 
 from pose_drawer.pose_drawer import PoseDrawer
-from app_transfer.model.generator import Generator
+from app_transfer.model.cached_generator import CachedGenerator
+from app_transfer.dataset import preprocess_img
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-use_fp16 = True
 
 class Monkey:
     """
     Handles all the shapeshifting!
     https://jackiechanadventures.fandom.com/wiki/Monkey_Talisman
     """
-
-    pose_drawer = PoseDrawer()
-
-    pose_model_base_path = 'pretrained_models/pose_detector.pt'
-    app_model_base_path = 'pretrained_models/2306_fac_2_down.pt'
-    rcnn_base_path = 'pretrained_models/keypointrcnn_resnet50_fpn_coco-9f466800.pth'
+    generator_base_path = 'pretrained_models/27_07_placeholder.pt'
+    rcnn_base_path = 'pretrained_models/pytorch_pose_detector.pt'
 
     def __init__(self):
-        pose_model = models.detection.keypointrcnn_resnet50_fpn(pretrained_backbone=False)
+        self.pose_drawer = PoseDrawer()
+
+        pose_model = keypointrcnn_resnet50_fpn(pretrained_backbone=False)
         pose_model.load_state_dict(torch.load(self.rcnn_base_path))
         self.pose_model = pose_model.eval().to(device)
 
-        app_img_path = 'rtc_server/assets/0.png'
-        app_pose_img_path = 'rtc_server/assests/0.png.pose'
-        #app_model = Generator()
-        #app_model.load_state_dict(torch.load(self.app_model_base_path))
-        #self.app_model = app_model.to(device)
+        generator = CachedGenerator()
+        generator.load_state_dict(torch.load(self.generator_base_path))
+        self.generator = generator.to(device)
+        self.load_appearance_img(Path('rtc_server/assets/0'))
 
-        # TODO: This is temporary and should be neatened up
-        #app_img = cv2.imread(self.app_img_path)
-        #app_img = cv2.cvtColor(app_img, cv2.COLOR_BGR2RGB)
-        #app_img = self.preprocess_img(app_img)
-        #app_img = np.asarray(app_img) / 256
-        # TODO: There is lots of replication in here thats in other methods
-        #app_tensor = transforms.ToTensor()(app_img).float()
-
-        # Downsample as using smaller ims for now
-        #app_tensor = nn.MaxPool2d(kernel_size=2)(app_tensor)
-        #self.app_tensor = app_tensor.view(1, 3, 128, 128)
-
-        # Downsample as using smaller ims for now
-        #app_pose_tensor = nn.MaxPool2d(kernel_size=2)(app_pose_tensor)
-        #self.app_pose_tensor = app_pose_tensor.view(1, 3, 128, 128)
-
-        #if self.use_cuda:
-        #    self.app_tensor = self.app_tensor.cuda()
-        #    self.app_pose_tensor = self.app_pose_tensor.cuda()
-         #self._generate_appearance_cache(app_img)
-
-    @staticmethod
-    def preprocess_img(img):
+    def load_appearance_img(self, app_img_root):
         """
-        Resized an image and pads it so final size
-        is 256x256.
+        Load an appearance image into the generator.
+        Assumes that there is ".jpg", ".pose.jpg" and
+        ".kp" files for the given image root
         Args:
-            img (np array)
-        Returns:
-            canvas (np array): 256x256 image of preprocessed img.
+            app_img_root (Pathlib object)
         """
-        if img is None:
-            return
+        app_img_path = app_img_root.with_suffix('.jpg')
+        app_pose_img_path = app_img_root.with_suffix('.pose.jpg')
+        app_kp_path = app_img_root.with_suffix('.kp')
 
-        img_width, img_height, _ = img.shape
-        current_max_dim = max(img_width, img_height)
-        scale_factor = 256 / current_max_dim
-        resized_img = cv2.resize(img, None, fx=scale_factor, fy=scale_factor)
-        height, width, _ = resized_img.shape
-        canvas = np.zeros([256, 256, 3])
-        canvas[:height, :width, :] = resized_img
-        return canvas
+        app_img = cv2.imread(app_img_path.as_posix())
+        app_pose_img = cv2.imread(app_pose_img_path.as_posix())
+
+        app_img = preprocess_img(app_img)
+        app_pose_img = preprocess_img(app_pose_img)
+
+        # Prepare the keypoint heatmaps and cat to pose imgs
+        with app_kp_path.open('rb') as in_f:
+            app_kp = pickle.load(in_f)
+        app_heatmaps = generate_kp_heatmaps(app_kp)
+        app_pose_img = torch.cat([app_pose_img, app_heatmaps])
+
+        app_img = app_img.view(1, 3, 256, 256).to(device)
+        app_pose_img = app_pose_img.view(1, 21, 256, 256).to(device)
+        self.generator.load_cache(app_img, app_pose_img)
 
     def draw_pose_from_img(self, img):
         """
@@ -85,77 +71,40 @@ class Monkey:
             pose_img (np array)
         """
         if img is None:
-            return
+            return None, None
 
-        img = self.preprocess_img(img)
-        img_tensor = transforms.ToTensor()(img).float()
-        img_tensor = img_tensor.view(1, 3, 256, 256)
-        img_tensor = nn.functional.interpolate(img_tensor,
-                                               size=(800, 800))
-        img_tensor = img_tensor.to(device)
+        img = transforms.ToTensor()(img).view(1, 3, 256, 256).float()
+        img = nn.functional.interpolate(img, size=(800, 800))
+        img = img.to(device)
 
         with torch.no_grad():
-            model_output = self.pose_model(img_tensor)
+            model_output = self.pose_model(img)
 
         keypoints = extract_keypoints(model_output)
         pose = self.pose_drawer.draw_pose_from_keypoints(keypoints)
-        return pose
+        return pose, keypoints
 
-    def transfer_appearance(self, pose_img):
+    def transfer_appearance(self, pose_img, keypoints):
         """
         This is the full shapeshift.
         Args:
             pose_img (np array): The pose to transfer to
+            keypoints (l o tuples): Keypoints of this desired pose
         """
-        if pose_img is None:
+        if pose_img is None or keypoints is None:
             return
 
-        pose_tensor = transforms.ToTensor()(pose_img).float()
-        pose_tensor = pose_tensor.unsqueeze(0)
-
-        # Downsample as currently using smaller imgs
-        # TODO: This shouldn't be constant being put and pulled off GPU
-        pose_tensor = nn.MaxPool2d(kernel_size=2)(pose_tensor)
-        if self.use_cuda:
-            pose_tensor = pose_tensor.cuda()
+        pose_img = transforms.ToTensor()(pose_img).float()
+        heatmaps = generate_kp_heatmaps(keypoints).float()
+        pose_img = torch.cat([pose_img, heatmaps])
+        pose_img = pose_img.unsqueeze(0).to(device)
 
         with torch.no_grad():
-            gen_img = self.app_model(self.app_tensor,
-                                     self.app_pose_tensor, pose_tensor)
+            gen_img = self.generator(pose_img)
 
         gen_img = gen_img.squeeze(0).permute(1, 2, 0)
         gen_img = gen_img.detach().cpu().numpy()
         return gen_img
-
-    def _prep_app_encoder_inp(self, app_img, app_joint_pos):
-        """
-        Prepares the data for input into the VUNet appearance encoder.
-        Returns a tuple of:
-            app_img (PyTorch tensor): Desired appearance img.
-            app_img_pose (PyTorch tensor): Pose of the desired appearance
-            localised_joints (PyTorch tensor): Zomed imgs of appearance
-                                               img joints.
-        """
-        localised_joints = get_localised_joints(app_img, app_joint_pos)
-
-        app_img_pose = self.pose_drawer.draw_pose_from_keypoints(app_joint_pos)
-        app_img = transforms.ToTensor()(app_img).float()
-        app_img_pose = transforms.ToTensor()(app_img_pose).float()
-
-        localised_joints = [transforms.ToTensor()(i).float()
-                            for i in localised_joints]
-        localised_joints = torch.cat(localised_joints).float()
-
-        # Mock having batch size one to make dimensions work in model.
-        app_img = app_img.unsqueeze(0)
-        app_img_pose = app_img_pose.unsqueeze(0)
-        localised_joints = localised_joints.unsqueeze(0)
-
-        app_img = app_img.to(device)
-        app_img_pose = app_img_pose.to(device)
-        localised_joints = localised_joints.to(device)
-
-        return (app_img, app_img_pose, localised_joints)
 
 
 def extract_keypoints(pose_model_out):
@@ -164,7 +113,7 @@ def extract_keypoints(pose_model_out):
     the pretrained torchvision model.
     """
     keypoints = pose_model_out[0]['keypoints'].cpu().numpy()
-    if len(keypoints) == 0:
+    if not keypoints.size:
         return [(0, 0) for _ in range(18)]
     keypoints = keypoints[0]
     keypoints_score = pose_model_out[0]['keypoints_scores'].cpu().numpy()[0]
@@ -180,20 +129,43 @@ def extract_keypoints(pose_model_out):
 def add_neck_keypoint(keypoints):
     """
     PyTorch pose detector does not return a neck keypoint.
-    This function adds it in as an average of the left
-    and right shoulders if both are found, (0, 0) otherwise.
+    Add it in as an average of the left and right shoulders
+    if both are found, (0, 0) otherwise.
     Args:
         keypoints (l o tuples)
     Returns:
         keypoints (l o tuples): Keypoints with neck added in.
     """
-    r_shoulder_keypoint = keypoints[5]
-    l_shoulder_keypoint = keypoints[6]
-    if r_shoulder_keypoint != (0, 0) and l_shoulder_keypoint != (0, 0):
-        neck_keypoint_x = (r_shoulder_keypoint[0] + l_shoulder_keypoint[0])//2
-        neck_keypoint_y = (r_shoulder_keypoint[1] + l_shoulder_keypoint[1])//2
-        neck_keypoint = (neck_keypoint_x, neck_keypoint_y)
+    r_shoulder_kp = keypoints[5]
+    l_shoulder_kp = keypoints[6]
+    if r_shoulder_kp != (0, 0) and l_shoulder_kp != (0, 0):
+        neck_kp_x = (r_shoulder_kp[0] + l_shoulder_kp[0])//2
+        neck_kp_y = (r_shoulder_kp[1] + l_shoulder_kp[1])//2
+        neck_kp = (neck_kp_x, neck_kp_y)
     else:
-        neck_keypoint = (0, 0)
-    keypoints.insert(1, neck_keypoint)
+        neck_kp = (0, 0)
+    keypoints.insert(1, neck_kp)
     return keypoints
+
+
+def generate_kp_heatmaps(kps):
+    """
+    Generates the exponential decay heatmaps for all the keypoints.
+    Args:
+        kps (l o tuples): Coordinates of the keypoints.
+    Returns:
+        np_array (PyTorch tensor): Stacked heatmaps of all the keypoints
+    """
+    kp_tensor = torch.zeros([18, 256, 256])
+    sigma = 5
+
+    for i, keypoint in enumerate(kps):
+        if keypoint == (0, 0):
+            continue
+
+        x, y = np.arange(0, 256), np.arange(0, 256)
+        xx, yy = np.meshgrid(x, y)
+        xx, yy = xx - keypoint[0], yy - keypoint[1]
+        z = np.exp(-(np.sqrt(np.square(xx) + np.square(yy))/np.square(sigma)))
+        kp_tensor[i] = torch.from_numpy(z)
+    return kp_tensor.float()
