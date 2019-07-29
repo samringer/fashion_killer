@@ -9,12 +9,10 @@ from torch.optim.lr_scheduler import StepLR
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader
 from torchsummary import summary
-from apex import amp
 
 from app_transfer.model.generator import Generator
 from app_transfer.dataset import AsosDataset
-from app_transfer.content_loss import PerceptualLoss
-#from app_transfer.perceptual_loss_vgg import PerceptualLossVGG
+from app_transfer.perceptual_loss_vgg import PerceptualLossVGG
 from utils import (prepare_experiment_dirs,
                    get_tb_logger,
                    set_seeds,
@@ -34,9 +32,8 @@ def train(unused_argv):
     set_seeds(257)
 
     generator = Generator().to(device)
-    perceptual_loss_vgg = PerceptualLoss().to(device)
-    #perceptual_loss_vgg = PerceptualLossVGG().to(device)
-    #perceptual_loss_vgg.eval()
+    perceptual_loss_vgg = PerceptualLossVGG().to(device)
+    perceptual_loss_vgg.eval()
 
     dummy_input_size = [(3, 256, 256), (21, 256, 256), (21, 256, 256)]
     #dummy_input_size = [(3, 128, 128), (21, 128, 128), (21, 128, 128)]
@@ -66,7 +63,7 @@ def train(unused_argv):
 
         lr_scheduler.step()
 
-        if epoch % 1 == 0:
+        if epoch % 2 == 0:
             save_path = join(models_path, '{}.pt'.format(epoch))
             torch.save(generator.state_dict(), save_path)
 
@@ -82,25 +79,19 @@ def train(unused_argv):
             #pose_img = nn.MaxPool2d(kernel_size=2)(pose_img)
 
             gen_img = generator(app_img, app_pose_img, pose_img)
-            l2_loss = nn.MSELoss()(gen_img, target_img)
-            # TODO: other nums from https://github.com/leftthomas/SRGAN/blob/master/loss.py
-            perceptual_loss = 0.1 * perceptual_loss_vgg(gen_img, target_img)
-            loss = l2_loss + perceptual_loss
+            l1_loss = nn.L1Loss()(gen_img, target_img)
+            perceptual_loss = 0.02 * perceptual_loss_vgg(gen_img, target_img)
+            loss = l1_loss + perceptual_loss
             loss.backward()
 
-            # TODO: CHANGE THIS BACK
-            #if step_num % 2 == 0:
-            # Trick to increase the effective batch size
-            # By a factor of 2 (used to be 4)
             clip_grad_norm_(generator.parameters(), 5)
             g_optimizer.step()
             g_optimizer.zero_grad()
 
             if step_num % FLAGS.tb_log_interval == 0:
-                log_results(epoch, step_num, logger, gen_img, loss, l2_loss, perceptual_loss)
+                log_results(epoch, step_num, logger, gen_img, loss, l1_loss, perceptual_loss)
 
             if step_num % FLAGS.checkpoint_interval == 0:
-                # TODO: Add in lr scheduler
                 sleep(5)
                 checkpoint_state = {
                     'generator': generator.state_dict(),
@@ -114,7 +105,7 @@ def train(unused_argv):
             step_num += 1
 
 
-def log_results(epoch, step_num, writer, gen_img, loss, l2_loss, perceptual_loss):
+def log_results(epoch, step_num, writer, gen_img, loss, l1_loss, perceptual_loss):
     """
     Log the results using tensorboardx so they can be
     viewed using a tensorboard server.
@@ -123,7 +114,7 @@ def log_results(epoch, step_num, writer, gen_img, loss, l2_loss, perceptual_loss
     img_file_name = 'generated_img/{}'.format(epoch)
     writer.add_image(img_file_name, gen_img, step_num)
     writer.add_scalar('Train/total_loss', loss.item(), step_num)
-    writer.add_scalar('Train/l2_loss', l2_loss.item(), step_num)
+    writer.add_scalar('Train/l1_loss', l1_loss.item(), step_num)
     writer.add_scalar('Train/perceptual_loss', perceptual_loss.item(), step_num)
 
 

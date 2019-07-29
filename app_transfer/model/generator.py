@@ -39,7 +39,10 @@ class Generator(nn.Module):
         self.dec_conv_0 = GenDecConvBlock(1536, 1536, 512)
         # comment below out for 64x64
         self.dec_conv_1 = GenDecConvBlock(1536, 512, 512)
+
+        # comment below out for 128x128
         self.dec_conv_2 = GenDecConvBlock(1536, 512, 512)
+
         self.dec_conv_3 = GenDecAttnBlock(512, 512, 512)
         self.dec_conv_4 = GenDecAttnBlock(256, 512, 256, num_heads=2)
 

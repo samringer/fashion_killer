@@ -86,9 +86,9 @@ class ImageThreadRunner:
         Extracts the pose from an input image.
         Used for both pose extraction and appearance transfer.
         """
+        inp_img = None
         while True:
-            #start_time = datetime.now()
-            inp_img = None
+            start_time = datetime.now()
             if self.preprocessed_img is not None:
                 inp_img = self.preprocessed_img / 256
             pose_img, self.kps = self.monkey.draw_pose_from_img(inp_img)
@@ -96,26 +96,31 @@ class ImageThreadRunner:
             # WebRTC wants in range 0-256
             if pose_img is not None:
                 self.pose_img = pose_img * 256
-            #delay = (datetime.now() - start_time).total_seconds()
-            #print("{:.1f} pose frames per second".format(1/delay))
+            delay = (datetime.now() - start_time).total_seconds()
+            #print("{:.1f} pose frames per sec".format(1/delay))
 
     def _appearance_transer(self):
         """
         Uses the pose image to perform appearance transfer.
         """
+        prev_pose = None
+        input_pose = None
+        app_img = None
         while True:
-            #start_time = datetime.now()
-            input_pose = None
             if self.pose_img is not None:
-                input_pose = self.pose_img / 256
-            app_img = self.monkey.transfer_appearance(input_pose,
-                                                      self.kps)
+                # Only redo app img if pose img has changed
+                if not np.array_equal(self.pose_img, prev_pose):
+                    start_time = datetime.now()
+                    input_pose = self.pose_img / 256
+                    app_img = self.monkey.transfer_appearance(input_pose,
+                                                              self.kps)
+                    prev_pose = self.pose_img
+                    delay = (datetime.now() - start_time).total_seconds()
+                    #print("{:.1f} app frames per sec".format(1/delay))
 
             # WebRTC wants in range 0-256
             if app_img is not None:
                 self.app_img = app_img * 256
-            #delay = (datetime.now() - start_time).total_seconds()
-            #print("{:.1f} app frames per second".format(1/delay))
 
 
 # Start the threads going as soon as possible in the global scope

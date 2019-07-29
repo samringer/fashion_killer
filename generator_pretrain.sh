@@ -1,11 +1,10 @@
 #! /bin/zsh
 set -eu
 
-# Notes: https://github.com/leftthomas/SRGAN/blob/master/loss.py
-# Find it strange they use a no grad clause
-# Using two heads for attn5 but all four heads for attn4
-experiment=get_placeholder_2
-learning_rate=1e-3
+# NOTES
+# Made the learning rate half the size and batch size 4 times smaller
+experiment=256x256_g_pretrain
+learning_rate=5e-5
 batch_size=8
 over_train=False
 use_fp16=False

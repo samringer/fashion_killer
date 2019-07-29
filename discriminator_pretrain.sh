@@ -1,13 +1,13 @@
 #! /bin/zsh
 set -eu
 
-experiment=64x64_dis_pretrain
+experiment=128x128_disc_pretrain
 learning_rate=1e-4
 batch_size=32
 over_train=False
 use_fp16=False
 num_epochs=500
-generator_path=/home/sam/experiments/app_transfer/26_07_TEST/models/5.pt
+generator_path=/home/sam/experiments/app_transfer/28_07_128x128_g_pretrain/models/2.pt
 
 exp_name=$(date +"%d_%m")_${experiment}
 EXP_DIR=/home/sam/experiments/app_transfer/${exp_name}
@@ -25,5 +25,5 @@ python -m app_transfer.discriminator_pretrain \
     --learning_rate=$learning_rate \
     --over_train=$over_train \
     --use_fp16=$use_fp16 \
-    --generator_path=$generator_path \
+    --gen_path=$generator_path \
     --num_epochs=$num_epochs |& tee -a ${EXP_DIR}/train.log

@@ -10,14 +10,14 @@ class Discriminator(nn.Module):
     def __init__(self):
         super().__init__()
         self.conv_0 = DisConvLayer(48, 128)
-        #self.conv_1 = DisConvLayer(128, 128)
+        self.conv_1 = DisConvLayer(128, 128)
         #self.conv_2 = DisConvLayer(128, 128, stride=1, padding=1)
-        self.attn_0 = AttentionMech(128)
+        # TODO: Update this properly when moving to larger dims
+        self.attn = AttentionMech(128)
         self.conv_3 = DisConvLayer(128, 256)
-        self.attn_1 = AttentionMech(256)
         self.conv_4 = DisConvLayer(256, 512)
         self.conv_5 = DisConvLayer(512, 512)
-        self.conv_6 = nn.Conv2d(512, 1, 3)
+        self.conv_6 = nn.Conv2d(512, 1, 4)
 
     def custom(self, module):
         """
@@ -29,18 +29,42 @@ class Discriminator(nn.Module):
             return out
         return custom_forward
 
-    def forward(self, app_img, app_pose_img, target_img, pose_img):
-        x = torch.cat([app_img, app_pose_img, target_img, pose_img], dim=1)
+    def forward(self, app_img, app_pose_img, pose_img, target_img):
+        x = torch.cat([app_img, app_pose_img, pose_img, target_img], dim=1)
         x = self.conv_0(x)
-        #x = self.conv_1(x)
+        x = self.conv_1(x)
         #x = self.conv_2(x)
-        x = chk.checkpoint(self.custom(self.attn_0), x)
+        x = chk.checkpoint(self.custom(self.attn), x)
         x = self.conv_3(x)
-        x = chk.checkpoint(self.custom(self.attn_1), x)
         x = self.conv_4(x)
         x = self.conv_5(x)
         x = self.conv_6(x)
         return x
+
+    def get_features(self, app_img, app_pose_img, pose_img, target_img):
+        """
+        Extract features to be used for the pyramid heirachy loss.
+        """
+        x = torch.cat([app_img, app_pose_img, pose_img, target_img], dim=1)
+        f_0 = self.conv_0(x)
+        f_1 = self.conv_1(f_0)
+        #x = self.conv_2(x)
+        f_2 = chk.checkpoint(self.custom(self.attn), f_1)
+        return [f_0, f_1, f_2]
+
+    def hierachy_loss(self, app_img, app_pose_img, pose_img,
+                      target_img, gen_img):
+        hierarchy_loss = 0
+        gen_feats = self.get_features(app_img, app_pose_img,
+                                      pose_img, gen_img)
+        with torch.no_grad():
+            real_feats = self.get_features(app_img, app_pose_img,
+                                           pose_img, target_img)
+
+        for gen_feat, real_feat in zip(gen_feats, real_feats):
+            hierarchy_loss += nn.L1Loss()(gen_feat, real_feat)
+
+        return hierarchy_loss
 
 
 class DisConvLayer(nn.Module):

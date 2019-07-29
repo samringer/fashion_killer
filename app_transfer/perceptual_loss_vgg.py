@@ -2,14 +2,13 @@
 
 import torch
 from torch import nn
-from torchvision.models.vgg import vgg16_bn
+from torchvision.models.vgg import vgg16
 
 
 class PerceptualLossVGG(nn.Module):
     def __init__(self):
         super().__init__()
-
-        self.vgg = vgg16_bn(True).features
+        self.vgg = vgg16(pretrained=True).features
         blocks = [i-1 for i, o in enumerate(self.vgg.children())
                   if isinstance(o, nn.MaxPool2d)]
         self.layer_ids = blocks[2:5]
