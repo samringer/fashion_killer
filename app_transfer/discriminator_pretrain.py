@@ -39,7 +39,7 @@ def train(unused_argv):
                              lr=FLAGS.learning_rate, betas=(0.5, 0.999))
 
     for step_num, batch in enumerate(dataloader):
-        if step_num >= 50:
+        if step_num >= 2000:
             save_path = join(models_path, 'final.pt')
             torch.save(discriminator.state_dict(), save_path)
             return
@@ -49,10 +49,10 @@ def train(unused_argv):
         target_img = batch['target_img'].to(device)
         pose_img = batch['pose_img'].to(device)
 
-        app_img = nn.MaxPool2d(kernel_size=2)(app_img)
-        app_pose_img = nn.MaxPool2d(kernel_size=2)(app_pose_img)
-        target_img = nn.MaxPool2d(kernel_size=2)(target_img)
-        pose_img = nn.MaxPool2d(kernel_size=2)(pose_img)
+        #app_img = nn.MaxPool2d(kernel_size=2)(app_img)
+        #app_pose_img = nn.MaxPool2d(kernel_size=2)(app_pose_img)
+        #target_img = nn.MaxPool2d(kernel_size=2)(target_img)
+        #pose_img = nn.MaxPool2d(kernel_size=2)(pose_img)
 
         with torch.no_grad():
             gen_img = generator(app_img, app_pose_img, pose_img)

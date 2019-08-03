@@ -1,17 +1,20 @@
 #! /bin/zsh
 set -eu
 
-# Note: Need to work out the correct loss ratios
-experiment=128x128_joint_downweight_gan_loss
+# Note
+# Halfed lr as batch size now smaller
+experiment=128x128_continue
 generator_lr=2e-5
 discriminator_lr=2e-4
 batch_size=32
 over_train=False
 use_fp16=False
-num_epochs=100
+num_epochs=200
 
 generator_path=/home/sam/experiments/app_transfer/28_07_128x128_g_pretrain/models/2.pt
 discriminator_path=/home/sam/experiments/app_transfer/28_07_128x128_disc_pretrain/models/final.pt
+
+checkpoint=/home/sam/experiments/app_transfer/29_07_128x128_joint_downweight_gan_loss/models/35000.chk
 
 exp_name=$(date +"%d_%m")_${experiment}
 EXP_DIR=/home/sam/experiments/app_transfer/${exp_name}
@@ -32,5 +35,5 @@ python -m app_transfer.joint_train \
     --use_fp16=$use_fp16 \
     --gen_path=$generator_path \
     --disc_path=$discriminator_path \
+    --load_checkpoint=$checkpoint \
     --num_epochs=$num_epochs |& tee -a ${EXP_DIR}/train.log
-    #--load_checkpoint=$load_checkpoint \

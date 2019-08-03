@@ -49,7 +49,7 @@ def train(unused_argv):
     dataset = AsosDataset(root_data_dir=FLAGS.data_dir,
                           overtrain=FLAGS.over_train)
     dataloader = DataLoader(dataset, batch_size=FLAGS.batch_size,
-                            shuffle=True, num_workers=2, pin_memory=True)
+                            shuffle=True, num_workers=5, pin_memory=True)
 
     g_optimizer = optim.Adam(generator.parameters(),
                              lr=FLAGS.gen_lr, betas=(0., 0.999))
@@ -112,13 +112,13 @@ def train(unused_argv):
                 perceptual_loss = 0.02 * perc_loss_vgg(gen_img,
                                                        target_img)
                 l1_loss = nn.L1Loss()(gen_img, target_img)
-                h_loss = 10 * discriminator.hierachy_loss(app_img,
-                                                          app_pose_img,
-                                                          pose_img,
-                                                          target_img,
-                                                          gen_img)
+                #h_loss = 10 * discriminator.hierachy_loss(app_img,
+                #                                          app_pose_img,
+                #                                          pose_img,
+                #                                          target_img,
+                #                                          gen_img)
 
-                g_loss = l1_loss + gan_loss + perceptual_loss + h_loss
+                g_loss = l1_loss + gan_loss + perceptual_loss #+ h_loss
 
                 g_optimizer.zero_grad()
                 g_loss.backward()
@@ -128,7 +128,7 @@ def train(unused_argv):
             if step_num % FLAGS.tb_log_interval == 0:
                 log_results(epoch, step_num, logger, gen_img,
                             d_loss, g_loss, l1_loss, gan_loss,
-                            perceptual_loss, h_loss)
+                            perceptual_loss) #, h_loss)
 
             if step_num % FLAGS.checkpoint_interval == 0:
                 checkpoint_state = {
@@ -160,7 +160,7 @@ def _prepare_batch_data(batch):
 
 
 def log_results(epoch, step_num, writer, gen_img, d_loss,
-                g_loss, l1_loss, gan_loss, perceptual_loss, h_loss):
+                g_loss, l1_loss, gan_loss, perceptual_loss): #, h_loss):
     """
     Log the results using tensorboardx so they can be
     viewed using a tensorboard server.
@@ -173,7 +173,7 @@ def log_results(epoch, step_num, writer, gen_img, d_loss,
     writer.add_scalar('Train/gan_loss', gan_loss, step_num)
     writer.add_scalar('Train/d_loss', d_loss, step_num)
     writer.add_scalar('Train/perceptual_loss', perceptual_loss, step_num)
-    writer.add_scalar('Train/hierachy_loss', h_loss, step_num)
+    #writer.add_scalar('Train/hierachy_loss', h_loss, step_num)
 
 
 def save_checkpoint(checkpoint_state):

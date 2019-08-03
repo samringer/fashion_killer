@@ -11,8 +11,7 @@ class Discriminator(nn.Module):
         super().__init__()
         self.conv_0 = DisConvLayer(48, 128)
         self.conv_1 = DisConvLayer(128, 128)
-        #self.conv_2 = DisConvLayer(128, 128, stride=1, padding=1)
-        # TODO: Update this properly when moving to larger dims
+        #self.conv_2 = DisConvLayer(128, 128)
         self.attn = AttentionMech(128)
         self.conv_3 = DisConvLayer(128, 256)
         self.conv_4 = DisConvLayer(256, 512)
@@ -48,9 +47,8 @@ class Discriminator(nn.Module):
         x = torch.cat([app_img, app_pose_img, pose_img, target_img], dim=1)
         f_0 = self.conv_0(x)
         f_1 = self.conv_1(f_0)
-        #x = self.conv_2(x)
-        f_2 = chk.checkpoint(self.custom(self.attn), f_1)
-        return [f_0, f_1, f_2]
+        #f_2 = self.conv_2(f_1)
+        return [f_0, f_1] #, f_2]
 
     def hierachy_loss(self, app_img, app_pose_img, pose_img,
                       target_img, gen_img):
