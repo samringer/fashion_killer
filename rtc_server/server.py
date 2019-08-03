@@ -53,9 +53,9 @@ class ImageThreadRunner:
         """
         preprocess_worker = Thread(target=self._std_transform)
         pose_worker = Thread(target=self._pose_detection)
-        #app_worker = Thread(target=self._appearance_transer)
+        app_worker = Thread(target=self._appearance_transer)
 
-        workers = [preprocess_worker, pose_worker] #, app_worker]
+        workers = [preprocess_worker, pose_worker, app_worker]
         for worker in workers:
             worker.setDaemon(True)
             worker.start()
@@ -147,13 +147,13 @@ class VideoTransformTrack(VideoStreamTrack):
             return frame
         if IMAGE_THREAD_RUNNER.pose_img is None:
             return frame
-        #if IMAGE_THREAD_RUNNER.app_img is None:
-        #    return frame
+        if IMAGE_THREAD_RUNNER.app_img is None:
+            return frame
 
         if self.transform == 'pose':
             out_img = IMAGE_THREAD_RUNNER.pose_img.astype('uint8')
-        #elif self.transform == 'appearance':
-        #    out_img = IMAGE_THREAD_RUNNER.app_img.astype('uint8')
+        elif self.transform == 'appearance':
+            out_img = IMAGE_THREAD_RUNNER.app_img.astype('uint8')
         else:
             out_img = IMAGE_THREAD_RUNNER.preprocessed_img.astype('uint8')
 

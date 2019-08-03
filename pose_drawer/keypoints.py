@@ -1,5 +1,10 @@
 from copy import deepcopy
 from random import random
+import math
+
+
+def sigmoid(x):
+    return 1 / (1 + math.exp(-x))
 
 
 class KeyPoints():
@@ -15,8 +20,12 @@ class KeyPoints():
 
         # Parameters for Markov model
         # p_m is prob moving from 'stationary' state to 'moving' state
-        # p_t is prob moving from one 'moving' state to another
-        self.alpha_1 = 2  # Used for calculating p_m
+        # p_conf incorporates confidence differences when in 'moving' state
+        # p_jump downweights probabilities of large jumps
+        # p_t is prob moving from one 'moving' state to another: f(p_conf, p_jump)
+        self.alpha_1 = 4.  # Used for calculating p_m
+        #self.alpha_2 = 1.3 # Used for calculating p_conf and p_t
+        #self.alpha_3 = 100.  # Used for calculating p_jump and p_t
 
     def update_markov_model(self, model_out):
         """
@@ -28,11 +37,29 @@ class KeyPoints():
             return
 
         for i, (old_kp, new_kp) in enumerate(zip(self.keypoints, new_keypoints)):
-            #if old_kp['state'] == 's': # Keypoint is currently stationary
             dist = euc_distance(old_kp, new_kp)
-            p_m = dist / (dist + self.alpha_1)
-            if random() < p_m:
+
+            # Keypoint is currently stationary
+            if old_kp['state'] == 's':
+                p_m = dist / (dist + self.alpha_1)
+                if random() < p_m:
+                    self.keypoints[i]['state'] = 'm'
+
+            # Keypoint is currently moving
+            elif old_kp['state'] == 'm':
                 self.keypoints[i] = new_kp
+                if dist < 1:
+                    self.keypoints[i]['state'] = 's'
+                """
+                p_conf = 1 #sigmoid(self.alpha_2*new_kp['score'] - old_kp['score'])
+                p_jump = self.alpha_3 / (self.alpha_3 + dist)
+                p_t = p_conf * p_jump
+                if random() < p_t:
+                    self.keypoints[i] = new_kp
+                else:
+                    self.keypoints[i] = new_kp
+                    self.keypoints[i]['state'] = 's'
+                """
 
     # TODO: This is a hack and really needs sorting
     def __iter__(self):
@@ -52,8 +79,9 @@ class KeyPoints():
         keypoints = [{'coord': tuple([256*j/800 for j in kp[:2]]),
                       'score': scores[i],
                       'state': 'm'} for i, kp in enumerate(model_kp[0])]
-
         keypoints = self.add_neck_keypoint(keypoints)
+        # TODO: Work out why this is needed
+        keypoints = self.get_mirror_image_keypoints(keypoints)
         return keypoints
 
     @staticmethod
