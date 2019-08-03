@@ -1,4 +1,5 @@
 from copy import deepcopy
+from random import random
 
 
 class KeyPoints():
@@ -12,14 +13,25 @@ class KeyPoints():
         self.threshold = 1.5
         self.keypoints = self.get_null_keypoints()
 
-    def update(self, model_out):
+        # Parameters for Markov model
+        # p_m is prob moving from 'stationary' state to 'moving' state
+        # p_t is prob moving from one 'moving' state to another
+        self.alpha_1 = 2  # Used for calculating p_m
+
+    def update_markov_model(self, model_out):
+        """
+        This is where the Markov model happens
+        """
         new_keypoints = self.parse_keypoints_from_model_out(model_out)
         if self.keypoints == self.get_null_keypoints():
             self.keypoints = new_keypoints
             return
 
         for i, (old_kp, new_kp) in enumerate(zip(self.keypoints, new_keypoints)):
-            if euc_distance(old_kp, new_kp) > 3.:
+            #if old_kp['state'] == 's': # Keypoint is currently stationary
+            dist = euc_distance(old_kp, new_kp)
+            p_m = dist / (dist + self.alpha_1)
+            if random() < p_m:
                 self.keypoints[i] = new_kp
 
     # TODO: This is a hack and really needs sorting

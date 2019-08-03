@@ -69,7 +69,7 @@ class Monkey:
         """
         Args:
             img (np array)
-            prev_kps (KeyPoints object)
+            kps (KeyPoints object): The kps from the previous frame
         Returns:
             pose_img (np array)
         """
@@ -77,6 +77,7 @@ class Monkey:
             return None, None
 
         if kps is None:
+            # Initial condition where we have no keypoints
             kps = KeyPoints()
 
         img = transforms.ToTensor()(img).view(1, 3, 256, 256).float()
@@ -86,8 +87,7 @@ class Monkey:
         with torch.no_grad():
             model_output = self.pose_model(img)
 
-        # This encapsulates the Markov model.
-        kps.update(model_output)
+        kps.update_markov_model(model_output)
 
         # TODO: Work out why this is needed
         #keypoints = get_mirror_image_keypoints(keypoints)
