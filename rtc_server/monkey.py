@@ -32,10 +32,10 @@ class Monkey:
         pose_model.load_state_dict(torch.load(self.rcnn_base_path))
         self.pose_model = pose_model.eval().to(device)
 
-        generator = CachedGenerator()
-        generator.load_state_dict(torch.load(self.generator_base_path))
-        self.generator = generator.to(device)
-        self.load_appearance_img(Path('rtc_server/assets/0'))
+        #generator = CachedGenerator()
+        #generator.load_state_dict(torch.load(self.generator_base_path))
+        #self.generator = generator.to(device)
+        #self.load_appearance_img(Path('rtc_server/assets/0'))
 
     def load_appearance_img(self, app_img_root):
         """
@@ -86,8 +86,9 @@ class Monkey:
         with torch.no_grad():
             model_output = self.pose_model(img)
 
+        # This encapsulates the Markov model.
         kps.update(model_output)
-        #keypoints = extract_keypoints(model_output)
+
         # TODO: Work out why this is needed
         #keypoints = get_mirror_image_keypoints(keypoints)
         pose = self.pose_drawer.draw_pose_from_keypoints(kps)

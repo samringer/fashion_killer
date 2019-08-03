@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 
 from pose_drawer.pose_settings import PoseSettings
+from pose_drawer.keypoints import KeyPoints
 
 
 class PoseDrawer():
@@ -14,10 +15,20 @@ class PoseDrawer():
         self.pose_settings = PoseSettings()
         self.canvas_size = int(canvas_size)
 
-    def draw_pose_from_keypoints(self, joint_positions):
+    def draw_pose_from_keypoints(self, keypoints):
+        """
+        Handles the drawing based on the type of keypoints.
+        """
+        if isinstance(keypoints, list):
+            return self.draw_pose_from_list(keypoints)
+        if isinstance(keypoints, KeyPoints):
+            return self.draw_pose_from_list(keypoints.viable_coords)
+        raise RuntimeError('Type not supported')
+
+    def draw_pose_from_list(self, keypoints):
         """
         Args:
-            joint_positions (l of tuples): Pixel positions of each joint.
+            keypoints (l of tuples): Pixel positions of each joint.
             edge_size (int): Pixel edge size of canvas to draw image on.
         Returns:
             canvas (np array): np array of image with pose drawn on it.
@@ -30,8 +41,8 @@ class PoseDrawer():
         # Draw each limb one at a time
         for connection, connection_color in zip(desired_connections, connection_colors):
             start_joint, end_joint = connection
-            start_point = joint_positions[start_joint.value]
-            end_point = joint_positions[end_joint.value]
+            start_point = keypoints[start_joint.value]
+            end_point = keypoints[end_joint.value]
             # Only draw connection if start point and end point both found.
             if all([self._point_found(point) for point in [start_point, end_point]]):
                 canvas = draw_line_on_canvas(canvas, start_point, end_point, connection_color)
