@@ -116,47 +116,6 @@ class Monkey:
         return gen_img
 
 
-def extract_keypoints(pose_model_out):
-    """
-    Used for preparing the keypoints the are the output of
-    the pretrained torchvision model.
-    """
-    keypoints = pose_model_out[0]['keypoints'].cpu().numpy()
-    if not keypoints.size:
-        return [(0, 0) for _ in range(18)]
-    keypoints = keypoints[0]
-    keypoints_score = pose_model_out[0]['keypoints_scores'].cpu().numpy()[0]
-    # 1.5 is arbritrarily chosen threshold
-    # Pose detector outputs in 800x800 coordinated but we want 256x256
-    filtered_keypoints = [tuple([256*j/800 for j in kp[:2]])
-                          if keypoints_score[i] > 1.5 else (0, 0)
-                          for i, kp in enumerate(keypoints)]
-    filtered_keypoints = add_neck_keypoint(filtered_keypoints)
-    return filtered_keypoints
-
-
-def add_neck_keypoint(keypoints):
-    """
-    PyTorch pose detector does not return a neck keypoint.
-    Add it in as an average of the left and right shoulders
-    if both are found, (0, 0) otherwise.
-    Args:
-        keypoints (l o tuples)
-    Returns:
-        keypoints (l o tuples): Keypoints with neck added in.
-    """
-    r_shoulder_kp = keypoints[5]
-    l_shoulder_kp = keypoints[6]
-    if r_shoulder_kp != (0, 0) and l_shoulder_kp != (0, 0):
-        neck_kp_x = (r_shoulder_kp[0] + l_shoulder_kp[0])//2
-        neck_kp_y = (r_shoulder_kp[1] + l_shoulder_kp[1])//2
-        neck_kp = (neck_kp_x, neck_kp_y)
-    else:
-        neck_kp = (0, 0)
-    keypoints.insert(1, neck_kp)
-    return keypoints
-
-
 def generate_kp_heatmaps(kps):
     """
     Generates the exponential decay heatmaps for all the keypoints.
@@ -182,30 +141,3 @@ def generate_kp_heatmaps(kps):
         z = np.exp(-(np.sqrt(np.square(xx) + np.square(yy))/np.square(sigma)))
         kp_tensor[i] = torch.from_numpy(z)
     return kp_tensor.float()
-
-def get_mirror_image_keypoints(keypoints):
-    mirrored_keypoints = deepcopy(keypoints)
-    mirrored_keypoints[2] = keypoints[3]
-    mirrored_keypoints[3] = keypoints[2]
-
-    mirrored_keypoints[4] = keypoints[5]
-    mirrored_keypoints[5] = keypoints[4]
-
-    mirrored_keypoints[6] = keypoints[7]
-    mirrored_keypoints[7] = keypoints[6]
-
-    mirrored_keypoints[8] = keypoints[9]
-    mirrored_keypoints[9] = keypoints[8]
-
-    mirrored_keypoints[10] = keypoints[11]
-    mirrored_keypoints[11] = keypoints[10]
-
-    mirrored_keypoints[12] = keypoints[13]
-    mirrored_keypoints[13] = keypoints[12]
-
-    mirrored_keypoints[14] = keypoints[15]
-    mirrored_keypoints[15] = keypoints[14]
-
-    mirrored_keypoints[16] = keypoints[17]
-    mirrored_keypoints[17] = keypoints[16]
-    return mirrored_keypoints

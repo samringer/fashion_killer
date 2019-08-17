@@ -3,7 +3,7 @@ set -eu
 
 # Note
 # Halfed lr as batch size now smaller
-experiment=128x128_continue
+experiment=128x128_continue_2
 generator_lr=2e-5
 discriminator_lr=2e-4
 batch_size=32
@@ -14,7 +14,7 @@ num_epochs=200
 generator_path=/home/sam/experiments/app_transfer/28_07_128x128_g_pretrain/models/2.pt
 discriminator_path=/home/sam/experiments/app_transfer/28_07_128x128_disc_pretrain/models/final.pt
 
-checkpoint=/home/sam/experiments/app_transfer/29_07_128x128_joint_downweight_gan_loss/models/35000.chk
+checkpoint=/home/sam/experiments/app_transfer/01_08_128x128_continue/models/190000.chk
 
 exp_name=$(date +"%d_%m")_${experiment}
 EXP_DIR=/home/sam/experiments/app_transfer/${exp_name}

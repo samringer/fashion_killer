@@ -12,24 +12,22 @@ from torchvision.models.inception import inception_v3
 import numpy as np
 from scipy.stats import entropy
 
-from DeformGAN.dataset import AsosDataset
-from DeformGAN.model.generator import Generator
-from DeformGAN.perceptual_loss_vgg import PerceptualLossVGG
-from utils import set_seeds
+from app_transfer.dataset import AsosDataset
+from app_transfer.model.generator import Generator
+from app_transfer.perceptual_loss_vgg import PerceptualLossVGG
+from utils import set_seeds, device
 
 
 def score_generator_on_validation(generator):
     set_seeds()
-    val_dataset = AsosDataset(root_data_dir='/home/sam/data/asos/0107_clean/val')
-    val_dataloader = DataLoader(val_dataset, batch_size=16)
+    val_dataset = AsosDataset(root_data_dir='/home/sam/data/asos/1307_clean/val')
+    val_dataloader = DataLoader(val_dataset, batch_size=64,
+                                num_workers=4)
 
     inception_model = inception_v3(pretrained=True,
-                                   transform_input=False)
-    perceptual_loss_vgg = PerceptualLossVGG()
-    if torch.cuda.is_available():
-        inception_model = inception_model.cuda()
-        generator = generator.cuda()
-        perceptual_loss_vgg = perceptual_loss_vgg.cuda()
+                                   transform_input=False).to(device)
+    perceptual_loss_vgg = PerceptualLossVGG().to(device)
+
     inception_model.eval()
     perceptual_loss_vgg.eval()
     generator.eval()
@@ -38,22 +36,16 @@ def score_generator_on_validation(generator):
     total_perceptual_loss = 0
     inception_scores = []
     for batch in val_dataloader:
-        app_img = batch['app_img']
-        app_pose_img = batch['app_pose_img']
-        target_img = batch['target_img']
-        pose_img = batch['pose_img']
+        app_img = batch['app_img'].to(device)
+        app_pose_img = batch['app_pose_img'].to(device)
+        target_img = batch['target_img'].to(device)
+        pose_img = batch['pose_img'].to(device)
 
         # Downsample as in traintime
-        #app_img = nn.MaxPool2d(kernel_size=4)(app_img)
-        #app_pose_img = nn.MaxPool2d(kernel_size=4)(app_pose_img)
-        #target_img = nn.MaxPool2d(kernel_size=4)(target_img)
-        #pose_img = nn.MaxPool2d(kernel_size=4)(pose_img)
-
-        if torch.cuda.is_available():
-            app_img = app_img.cuda()
-            app_pose_img = app_pose_img.cuda()
-            target_img = target_img.cuda()
-            pose_img = pose_img.cuda()
+        app_img = nn.MaxPool2d(kernel_size=2)(app_img)
+        app_pose_img = nn.MaxPool2d(kernel_size=2)(app_pose_img)
+        target_img = nn.MaxPool2d(kernel_size=2)(target_img)
+        pose_img = nn.MaxPool2d(kernel_size=2)(pose_img)
 
         with torch.no_grad():
             gen_img = generator(app_img, app_pose_img, pose_img)
@@ -85,6 +77,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     generator = Generator()
     generator.load_state_dict(torch.load(args.generator_path))
+    generator = generator.to(device)
+
     inception_score, l1_loss, perceptual_loss = score_generator_on_validation(generator)
     print(f"Inception score: {inception_score:.3f}")
     print(f"L1 loss: {l1_loss:.3f}")

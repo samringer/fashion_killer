@@ -2,7 +2,7 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WebRTC demo</title>
+    <title>Fashion Killer</title>
     <style>
     button {
         padding: 8px 16px;
@@ -27,22 +27,22 @@
 	} 
 
 	#original-video { 
-		width: 30%; 
-		height: 400px; 
-		float: left; 
+		width: 15%; 
+		height: 200px; 
+		float: right; 
 		margin-right: 5%;
 	} 
 
 	#pose-video { 
-		width: 30%; 
-		height: 400px; 
-		float: left; 
+		width: 15%; 
+		height: 200px; 
+		float: right; 
 		margin-right: 5%;
 	} 
 
 	#appearance-video { 
-		width: 30%; 
-		height: 400px; 
+		width: 55%; 
+		height: 680px; 
 		float: left; 
 	}
 
@@ -65,31 +65,50 @@
         height: 130px;
     }
 
+    .gallery {
+        display: grid;
+        float: right;
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-rows: repeat(3, 12vw);
+        grid-gap: 10px;
+    }
+
 
     </style>
 </head>
 <body onload="start()">
 
-<h2>Options</h2>
-<div class="option">
-    <input id="use-video" checked="checked" type="checkbox"/>
-    <label for="use-video">Use video</label>
-    <select id="video-resolution">
-        <option value="" selected>Default resolution</option>
-        <option value="320x240">320x240</option>
-        <option value="640x480">640x480</option>
-        <option value="960x540">960x540</option>
-        <option value="1280x720">1280x720</option>
-    </select>
-</div>
-
-<div id="media" style="display: none">
-    <video id="original-video" autoplay="true"></video>
-    <video id="pose-video" autoplay="true"></video>
+<div id="media1" style="display: none">
     <video id="appearance-video" autoplay="true"></video>
 </div>
 
-<div class="row">
+<div class="gallery">
+    <figure class-"gallery__item gallery__item--0">
+        <img src="/assets/0.jpg" onclick="switch_app_img('0')" class="app_img" alt="0">
+    </figure>
+    <figure class-"gallery__item gallery__item--1">
+        <img src="/assets/1.jpg" onclick="switch_app_img('1')" class="app_img" alt="1">
+    </figure>
+    <figure class-"gallery__item gallery__item--2">
+        <img src="/assets/2.jpg" onclick="switch_app_img('2')" class="app_img" alt="2">
+    </figure>
+    <figure class-"gallery__item gallery__item--3">
+        <img src="/assets/3.jpg" onclick="switch_app_img('3')" class="app_img" alt="3">
+    </figure>
+    <figure class-"gallery__item gallery__item--4">
+        <img src="/assets/4.jpg" onclick="switch_app_img('4')" class="app_img" alt="4">
+    </figure>
+    <figure class-"gallery__item gallery__item--5">
+        <img src="/assets/5.jpg" onclick="switch_app_img('5')" class="app_img" alt="5">
+    </figure>
+</div>
+
+<div id="media2" style="display: none">
+    <video id="original-video" autoplay="true"></video>
+    <video id="pose-video" autoplay="true"></video>
+</div>
+
+<!-- <div class="row">
     <div class="column">
         <img src="/assets/0.jpg" onclick="switch_app_img('0')" class="app_img" alt="0">
     </div>
@@ -110,7 +129,7 @@
     </div>
     <div class="column">
         <img src="/assets/6.jpg" onclick="switch_app_img('6')" class="app_img" alt="6">
-    </div>
+    </div> -->
 </body>
 
 <script src="client.js"></script>

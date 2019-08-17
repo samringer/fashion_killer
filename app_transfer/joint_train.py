@@ -32,7 +32,7 @@ def train(unused_argv):
     """
     models_path = prepare_experiment_dirs()
     logger = get_tb_logger()
-    set_seeds(131)
+    set_seeds(132)
 
 
     generator = Generator()

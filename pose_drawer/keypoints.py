@@ -16,23 +16,20 @@ class KeyPoints():
     """
     def __init__(self):
         self.threshold = 1.5
-        self.keypoints = self.get_null_keypoints()
+        self.keypoints = self._get_null_keypoints()
 
         # Parameters for Markov model
         # p_m is prob moving from 'stationary' state to 'moving' state
         # p_conf incorporates confidence differences when in 'moving' state
         # p_jump downweights probabilities of large jumps
-        # p_t is prob moving from one 'moving' state to another: f(p_conf, p_jump)
         self.alpha_1 = 4.  # Used for calculating p_m
-        #self.alpha_2 = 1.3 # Used for calculating p_conf and p_t
-        #self.alpha_3 = 100.  # Used for calculating p_jump and p_t
 
     def update_markov_model(self, model_out):
         """
         This is where the Markov model happens
         """
-        new_keypoints = self.parse_keypoints_from_model_out(model_out)
-        if self.keypoints == self.get_null_keypoints():
+        new_keypoints = self._parse_keypoints_from_model_out(model_out)
+        if self.keypoints == self._get_null_keypoints():
             self.keypoints = new_keypoints
             return
 
@@ -50,42 +47,32 @@ class KeyPoints():
                 self.keypoints[i] = new_kp
                 if dist < 1:
                     self.keypoints[i]['state'] = 's'
-                """
-                p_conf = 1 #sigmoid(self.alpha_2*new_kp['score'] - old_kp['score'])
-                p_jump = self.alpha_3 / (self.alpha_3 + dist)
-                p_t = p_conf * p_jump
-                if random() < p_t:
-                    self.keypoints[i] = new_kp
-                else:
-                    self.keypoints[i] = new_kp
-                    self.keypoints[i]['state'] = 's'
-                """
 
     # TODO: This is a hack and really needs sorting
     def __iter__(self):
         return iter(self.viable_coords)
 
-    def parse_keypoints_from_model_out(self, pose_model_out):
+    def _parse_keypoints_from_model_out(self, pose_model_out):
         """
         Used for preparing the keypoints the are the output of
         the pretrained torchvision model.
         """
         model_kp = pose_model_out[0]['keypoints'].cpu().numpy()
         if not model_kp.size:
-            return self.get_null_keypoints()
+            return self._get_null_keypoints()
         scores = pose_model_out[0]['keypoints_scores'].cpu().numpy()[0]
 
         # Pose detector outputs in 800x800 coordinated but we want 256x256
         keypoints = [{'coord': tuple([256*j/800 for j in kp[:2]]),
                       'score': scores[i],
                       'state': 'm'} for i, kp in enumerate(model_kp[0])]
-        keypoints = self.add_neck_keypoint(keypoints)
+        keypoints = self._add_neck_keypoint(keypoints)
         # TODO: Work out why this is needed
-        keypoints = self.get_mirror_image_keypoints(keypoints)
+        keypoints = self._get_mirror_image_keypoints(keypoints)
         return keypoints
 
     @staticmethod
-    def get_null_keypoints():
+    def _get_null_keypoints():
         """
         Returns a null keypoints to use as placeholder.
         -10 is arbitrary number to represent a bad score.
@@ -93,7 +80,7 @@ class KeyPoints():
         return [{'coord': (0, 0), 'score': -10, 'state': 'm'} for _ in range(18)]
 
     @staticmethod
-    def add_neck_keypoint(keypoints):
+    def _add_neck_keypoint(keypoints):
         """
         PyTorch pose detector does not return a neck keypoint.
         Add it in as an average of the left and right shoulders
@@ -133,7 +120,7 @@ class KeyPoints():
         return viable_coords
 
     @staticmethod
-    def get_mirror_image_keypoints(keypoints):
+    def _get_mirror_image_keypoints(keypoints):
         mirrored_keypoints = deepcopy(keypoints)
         mirrored_keypoints[2] = keypoints[3]
         mirrored_keypoints[3] = keypoints[2]
@@ -159,6 +146,7 @@ class KeyPoints():
         mirrored_keypoints[16] = keypoints[17]
         mirrored_keypoints[17] = keypoints[16]
         return mirrored_keypoints
+
 
 def euc_distance(kp_0, kp_1):
     """

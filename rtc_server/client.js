@@ -90,41 +90,23 @@ function start() {
     }
 
     var constraints = {
-        video: false
+        video: true
     };
 
-    var resolution = document.getElementById('video-resolution').value;
-    if (resolution) {
-        resolution = resolution.split('x');
-        constraints.video = {
-            width: parseInt(resolution[0], 0),
-            height: parseInt(resolution[1], 0)
-        };
-    } else {
-        constraints.video = true;
-    }
-
-    if (constraints.video) {
-        if (constraints.video) {
-            document.getElementById('media').style.display = 'block';
-        }
-        navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
-            stream.getTracks().forEach(function(track) {
-                pc_original.addTrack(track, stream);
-                pc_pose.addTrack(track, stream);
-                pc_appearance.addTrack(track, stream);
-            });
-            negotiate(pc_original, 'original');
-            negotiate(pc_pose, 'pose');
-            negotiate(pc_appearance, 'appearance');
-        }, function(err) {
-            alert('Could not acquire media: ' + err);
+    document.getElementById('media1').style.display = 'block';
+    document.getElementById('media2').style.display = 'block';
+    navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
+        stream.getTracks().forEach(function(track) {
+            pc_original.addTrack(track, stream);
+            pc_pose.addTrack(track, stream);
+            pc_appearance.addTrack(track, stream);
         });
-    } else {
         negotiate(pc_original, 'original');
         negotiate(pc_pose, 'pose');
         negotiate(pc_appearance, 'appearance');
-    }
+    }, function(err) {
+        alert('Could not acquire media: ' + err);
+    });
 
     document.getElementById('stop').style.display = 'inline-block';
 }
