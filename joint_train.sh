@@ -2,8 +2,8 @@
 set -eu
 
 # Note
-# Halfed lr as batch size now smaller
-experiment=128x128_continue_2
+# lr data augmentation bug fixed
+experiment=128x128_joint_fix_data_aug
 generator_lr=2e-5
 discriminator_lr=2e-4
 batch_size=32
@@ -11,10 +11,10 @@ over_train=False
 use_fp16=False
 num_epochs=200
 
-generator_path=/home/sam/experiments/app_transfer/28_07_128x128_g_pretrain/models/2.pt
-discriminator_path=/home/sam/experiments/app_transfer/28_07_128x128_disc_pretrain/models/final.pt
+generator_path=/home/sam/experiments/app_transfer/18_08_fix_lr_dependency_data_aug/models/final.pt
+discriminator_path=/home/sam/experiments/app_transfer/21_08_128x128_fix_data_aug_disc_pretrain/models/final.pt
 
-checkpoint=/home/sam/experiments/app_transfer/01_08_128x128_continue/models/190000.chk
+#checkpoint=/home/sam/experiments/app_transfer/01_08_128x128_continue/models/190000.chk
 
 exp_name=$(date +"%d_%m")_${experiment}
 EXP_DIR=/home/sam/experiments/app_transfer/${exp_name}
@@ -35,5 +35,5 @@ python -m app_transfer.joint_train \
     --use_fp16=$use_fp16 \
     --gen_path=$generator_path \
     --disc_path=$discriminator_path \
-    --load_checkpoint=$checkpoint \
     --num_epochs=$num_epochs |& tee -a ${EXP_DIR}/train.log
+    #--load_checkpoint=$checkpoint \

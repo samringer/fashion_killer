@@ -9,10 +9,11 @@ from torch.optim.lr_scheduler import StepLR
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader
 from torchsummary import summary
+from apex import amp
 
 from app_transfer.model.generator import Generator
 from app_transfer.dataset import AsosDataset
-from app_transfer.perceptual_loss_vgg import PerceptualLossVGG
+from app_transfer.model.perceptual_loss_vgg import PerceptualLossVGG
 from utils import (prepare_experiment_dirs,
                    get_tb_logger,
                    set_seeds,
@@ -33,10 +34,10 @@ def train(unused_argv):
 
     generator = Generator().to(device)
     perceptual_loss_vgg = PerceptualLossVGG().to(device)
-    perceptual_loss_vgg.eval()
+    #perceptual_loss_vgg.eval()
 
-    dummy_input_size = [(3, 256, 256), (21, 256, 256), (21, 256, 256)]
-    #dummy_input_size = [(3, 128, 128), (21, 128, 128), (21, 128, 128)]
+    #dummy_input_size = [(3, 256, 256), (21, 256, 256), (21, 256, 256)]
+    dummy_input_size = [(3, 128, 128), (21, 128, 128), (21, 128, 128)]
     #dummy_input_size = [(3, 64, 64), (21, 64, 64), (21, 64, 64)]
     summary(generator, input_size=dummy_input_size)
     set_seeds(257)  # Doing a summary skrews the rng so reset seeds
@@ -44,12 +45,15 @@ def train(unused_argv):
     dataset = AsosDataset(root_data_dir=FLAGS.data_dir,
                           overtrain=FLAGS.over_train)
     dataloader = DataLoader(dataset, batch_size=FLAGS.batch_size,
-                            shuffle=True, num_workers=3, pin_memory=True)
+                            shuffle=True, num_workers=5, pin_memory=True)
 
     g_optimizer = optim.Adam(generator.parameters(),
                              lr=FLAGS.learning_rate, betas=(0.5, 0.999))
 
-    lr_scheduler = StepLR(g_optimizer, step_size=20, gamma=0.8)
+    if FLAGS.use_fp16:
+        [generator, perceptual_loss_vgg], g_optimizer = amp.initialize([generator, perceptual_loss_vgg], g_optimizer, opt_level='O1')
+
+    lr_scheduler = StepLR(g_optimizer, step_size=40, gamma=0.8)
 
     step_num = 0
     if FLAGS.load_checkpoint:
@@ -61,8 +65,6 @@ def train(unused_argv):
 
     for epoch in range(FLAGS.num_epochs):
 
-        lr_scheduler.step()
-
         if epoch % 2 == 0:
             save_path = join(models_path, '{}.pt'.format(epoch))
             torch.save(generator.state_dict(), save_path)
@@ -73,16 +75,20 @@ def train(unused_argv):
             target_img = batch['target_img'].to(device)
             pose_img = batch['pose_img'].to(device)
 
-            #app_img = nn.MaxPool2d(kernel_size=2)(app_img)
-            #app_pose_img = nn.MaxPool2d(kernel_size=2)(app_pose_img)
-            #target_img = nn.MaxPool2d(kernel_size=2)(target_img)
-            #pose_img = nn.MaxPool2d(kernel_size=2)(pose_img)
+            app_img = nn.MaxPool2d(kernel_size=2)(app_img)
+            app_pose_img = nn.MaxPool2d(kernel_size=2)(app_pose_img)
+            target_img = nn.MaxPool2d(kernel_size=2)(target_img)
+            pose_img = nn.MaxPool2d(kernel_size=2)(pose_img)
 
             gen_img = generator(app_img, app_pose_img, pose_img)
             l1_loss = nn.L1Loss()(gen_img, target_img)
             perceptual_loss = 0.02 * perceptual_loss_vgg(gen_img, target_img)
             loss = l1_loss + perceptual_loss
-            loss.backward()
+            if FLAGS.use_fp16:
+                with amp.scale_loss(loss, g_optimizer) as scaled_loss:
+                    scaled_loss.backward()
+            else:
+                loss.backward()
 
             clip_grad_norm_(generator.parameters(), 5)
             g_optimizer.step()
@@ -103,6 +109,7 @@ def train(unused_argv):
                 save_checkpoint(checkpoint_state)
             logging.info(f"{step_num} {loss.item():.4f}")
             step_num += 1
+        lr_scheduler.step()
 
 
 def log_results(epoch, step_num, writer, gen_img, loss, l1_loss, perceptual_loss):

@@ -51,21 +51,20 @@ class AsosDataset(Dataset):
         app_img = cv2.imread(app_path.as_posix())
         target_img = cv2.imread(target_path.as_posix())
 
+        # TODO: The file names are skrewed. Redo data cleaning so
+        # there isn't this mismatch in reversed/non-reversed names.
         if random() < 0.5:
-            # Randomly do an LR flip on app img
+            # Randomly do an LR flip
             app_img = cv2.flip(app_img, 1)
+            target_img = cv2.flip(target_img, 1)
+
             app_pose_path = app_path.with_suffix('.revpose.jpg')
             app_kp_path = app_path.with_suffix('.kp')
-        else:
-            app_pose_path = app_path.with_suffix('.pose.jpg')
-            app_kp_path = app_path.with_suffix('.revkp')
-
-        if random() < 0.5:
-            # Randomly do an LR flip on target img
-            target_img = cv2.flip(target_img, 1)
             pose_path = target_path.with_suffix('.revpose.jpg')
             target_kp_path = target_path.with_suffix('.kp')
         else:
+            app_pose_path = app_path.with_suffix('.pose.jpg')
+            app_kp_path = app_path.with_suffix('.revkp')
             pose_path = target_path.with_suffix('.pose.jpg')
             target_kp_path = target_path.with_suffix('.revkp')
 

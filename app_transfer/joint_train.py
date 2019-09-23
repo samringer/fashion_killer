@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from app_transfer.model.generator import Generator
 from app_transfer.model.discriminator import Discriminator
 from app_transfer.dataset import AsosDataset
-from app_transfer.perceptual_loss_vgg import PerceptualLossVGG
+from app_transfer.model.perceptual_loss_vgg import PerceptualLossVGG
 from utils import (prepare_experiment_dirs,
                    get_tb_logger,
                    set_seeds,
@@ -56,8 +56,8 @@ def train(unused_argv):
     d_optimizer = optim.Adam(discriminator.parameters(),
                              lr=FLAGS.disc_lr, betas=(0., 0.999))
 
-    g_lr_scheduler = StepLR(g_optimizer, step_size=20, gamma=0.8)
-    d_lr_scheduler = StepLR(d_optimizer, step_size=20, gamma=0.8)
+    g_lr_scheduler = StepLR(g_optimizer, step_size=40, gamma=0.8)
+    d_lr_scheduler = StepLR(d_optimizer, step_size=40, gamma=0.8)
 
     step_num = 0
     if FLAGS.load_checkpoint:

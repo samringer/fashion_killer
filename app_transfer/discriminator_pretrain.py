@@ -33,13 +33,13 @@ def train(unused_argv):
     dataset = AsosDataset(root_data_dir=FLAGS.data_dir,
                           overtrain=FLAGS.over_train)
     dataloader = DataLoader(dataset, batch_size=FLAGS.batch_size,
-                            shuffle=True, num_workers=2, pin_memory=True)
+                            shuffle=True, num_workers=6, pin_memory=True)
 
     d_optimizer = optim.Adam(discriminator.parameters(),
                              lr=FLAGS.learning_rate, betas=(0.5, 0.999))
 
     for step_num, batch in enumerate(dataloader):
-        if step_num >= 2000:
+        if step_num >= 1000:
             save_path = join(models_path, 'final.pt')
             torch.save(discriminator.state_dict(), save_path)
             return
@@ -49,10 +49,10 @@ def train(unused_argv):
         target_img = batch['target_img'].to(device)
         pose_img = batch['pose_img'].to(device)
 
-        #app_img = nn.MaxPool2d(kernel_size=2)(app_img)
-        #app_pose_img = nn.MaxPool2d(kernel_size=2)(app_pose_img)
-        #target_img = nn.MaxPool2d(kernel_size=2)(target_img)
-        #pose_img = nn.MaxPool2d(kernel_size=2)(pose_img)
+        app_img = nn.MaxPool2d(kernel_size=2)(app_img)
+        app_pose_img = nn.MaxPool2d(kernel_size=2)(app_pose_img)
+        target_img = nn.MaxPool2d(kernel_size=2)(target_img)
+        pose_img = nn.MaxPool2d(kernel_size=2)(pose_img)
 
         with torch.no_grad():
             gen_img = generator(app_img, app_pose_img, pose_img)

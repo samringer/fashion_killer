@@ -20,7 +20,7 @@ flags.DEFINE_string('load_checkpoint', None,
 flags.DEFINE_boolean('use_cuda', True, "Whether to use GPU")
 flags.DEFINE_boolean('use_fp16', True, "Whether to use mixed precision")
 flags.DEFINE_boolean('over_train', False, "Overtrain on one datapoint")
-flags.DEFINE_integer('checkpoint_interval', 5000,
+flags.DEFINE_integer('checkpoint_interval', 20000,
                      "How often in train steps to checkpoint.")
 flags.DEFINE_integer('tb_log_interval', 30,
                      "Training step interval for tensorboard logging.")

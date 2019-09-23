@@ -22,7 +22,8 @@ class Monkey:
     Handles all the shapeshifting!
     https://jackiechanadventures.fandom.com/wiki/Monkey_Talisman
     """
-    generator_base_path = 'pretrained_models/01_08_model.pt'
+    #generator_base_path = 'pretrained_models/01_08_model.pt'
+    generator_base_path = 'pretrained_models/17_08_128x128.pt'
     rcnn_base_path = 'pretrained_models/pytorch_pose_detector.pt'
 
     def __init__(self):
@@ -63,6 +64,10 @@ class Monkey:
 
         app_img = app_img.view(1, 3, 256, 256).to(device)
         app_pose_img = app_pose_img.view(1, 21, 256, 256).to(device)
+
+        app_img = nn.MaxPool2d(kernel_size=2)(app_img)
+        app_pose_img = nn.MaxPool2d(kernel_size=2)(app_pose_img)
+
         self.generator.load_cache(app_img, app_pose_img)
 
     def draw_pose_from_img(self, img, kps=None):
@@ -107,6 +112,8 @@ class Monkey:
         heatmaps = generate_kp_heatmaps(keypoints).float()
         pose_img = torch.cat([pose_img, heatmaps])
         pose_img = pose_img.unsqueeze(0).to(device)
+
+        pose_img = nn.MaxPool2d(kernel_size=2)(pose_img)
 
         with torch.no_grad():
             gen_img = self.generator(pose_img)

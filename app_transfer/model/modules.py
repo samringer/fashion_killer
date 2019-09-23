@@ -20,9 +20,9 @@ class ConvBlock(nn.Module):
 
 
 class GenDecAttnBlock(nn.Module):
-    def __init__(self, in_c, prev_in_c, out_c, num_heads=4):
+    def __init__(self, in_c, prev_in_c, out_c, downsample_fac=1):
         super().__init__()
-        self.attn_mech = AttnMech(in_c, num_heads)
+        self.attn_mech = AttnMech(in_c, downsample_fac)
         self.conv = ConvBlock(in_c+prev_in_c, out_c)
 
     def custom(self, module):
@@ -57,49 +57,44 @@ class GenDecConvBlock(nn.Module):
 
 
 class AttnMech(nn.Module):
-    def __init__(self, in_c, num_heads=4):
+    def __init__(self, in_c, downsample_fac=1):
         """
         So far only the hacky option of 2 or for heads is supported.
         Not attn_c is always taken to be in_c//4, regardless of the num
         of heads. This is to make things fit in memory for two headed situtaion.
         """
         super().__init__()
-        self.num_heads = num_heads
-        self.attn_head_1 = SingleAttnHead(in_c, in_c//4)
-        self.attn_head_2 = SingleAttnHead(in_c, in_c//4)
-        if num_heads == 4:
-            self.attn_head_3 = SingleAttnHead(in_c, in_c//4)
-            self.attn_head_4 = SingleAttnHead(in_c, in_c//4)
-            self.final_conv = nn.Conv2d(2*in_c, in_c, 1)
-        elif num_heads == 2:
-            self.final_conv = nn.Conv2d(in_c + in_c//2, in_c, 1)
-        else:
-            raise RuntimeError("Only two or four heads supported")
+        self.attn_head_1 = SingleAttnHead(in_c, in_c//4, downsample_fac)
+        self.attn_head_2 = SingleAttnHead(in_c, in_c//4, downsample_fac)
+        self.attn_head_3 = SingleAttnHead(in_c, in_c//4, downsample_fac)
+        self.attn_head_4 = SingleAttnHead(in_c, in_c//4, downsample_fac)
+        self.final_conv = nn.Conv2d(2*in_c, in_c, 1)
 
 
     def forward(self, app_enc, app_pose_enc, pose_enc):
         attn_out_1 = self.attn_head_1(app_enc, app_pose_enc, pose_enc)
         attn_out_2 = self.attn_head_2(app_enc, app_pose_enc, pose_enc)
-        if self.num_heads == 4:
-            attn_out_3 = self.attn_head_3(app_enc, app_pose_enc, pose_enc)
-            attn_out_4 = self.attn_head_4(app_enc, app_pose_enc, pose_enc)
-            out = torch.cat([pose_enc, attn_out_1, attn_out_2,
-                             attn_out_3, attn_out_4], dim=1)
-        else:
-            out = torch.cat([pose_enc, attn_out_1, attn_out_2], dim=1)
+        attn_out_3 = self.attn_head_3(app_enc, app_pose_enc, pose_enc)
+        attn_out_4 = self.attn_head_4(app_enc, app_pose_enc, pose_enc)
+        out = torch.cat([pose_enc, attn_out_1, attn_out_2,
+                         attn_out_3, attn_out_4], dim=1)
         out = self.final_conv(out)
         return out
 
 
 class SingleAttnHead(nn.Module):
-    def __init__(self, in_c, attn_size):
+    def __init__(self, in_c, attn_size, downsample_fac=1):
         super().__init__()
         self.in_c = in_c
         self.attn_size = attn_size
+        self.upsample = nn.Upsample(scale_factor=downsample_fac)
 
-        self.q_conv = nn.Conv2d(in_c, attn_size, 1)
-        self.k_conv = nn.Conv2d(in_c, attn_size, 1)
-        self.v_conv = nn.Conv2d(in_c, attn_size, 1)
+        self.q_conv = nn.Conv2d(in_c, attn_size, downsample_fac,
+                                downsample_fac)
+        self.k_conv = nn.Conv2d(in_c, attn_size, downsample_fac,
+                                downsample_fac)
+        self.v_conv = nn.Conv2d(in_c, attn_size, downsample_fac,
+                                downsample_fac)
 
         self.gamma = nn.Parameter(torch.Tensor([0.]))
 
@@ -115,7 +110,8 @@ class SingleAttnHead(nn.Module):
         value = value.view(-1, self.attn_size, w*h).transpose(1, 2)
 
         attn = query@key
-        attn = attn / (self.attn_size**0.5)  # Scale like transformer paper
+        attn = attn / (self.attn_size**0.5)
         attn_out = attn@value
-        attn_out = attn_out.view(-1, w, h, self.attn_size).permute(0, 3, 1, 2)
-        return self.gamma * attn_out
+        out = attn_out.view(-1, w, h, self.attn_size).permute(0, 3, 1, 2)
+        out = self.upsample(out)
+        return self.gamma * out

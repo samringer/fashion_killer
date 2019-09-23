@@ -2,12 +2,13 @@
 set -eu
 
 # NOTES
-# Made the learning rate half the size and batch size 4 times smaller
-experiment=256x256_g_pretrain
-learning_rate=5e-5
-batch_size=8
+# TEST if mixed precision gets same results as fp32
+# Just l1 loss, checking if it keeps going down
+experiment=fp16_fixed_bug
+learning_rate=1e-4
+batch_size=32
 over_train=False
-use_fp16=False
+use_fp16=True
 num_epochs=1000
 #load_checkpoint=/home/sam/experiments/DeformGAN/11_07_BIG_flipped_no_softmax/models/50000.chk
 

@@ -1,13 +1,13 @@
 #! /bin/zsh
 set -eu
 
-experiment=256x256_disc_pretrain
+experiment=128x128_fix_data_aug_disc_pretrain
 learning_rate=1e-4
-batch_size=8
+batch_size=32
 over_train=False
 use_fp16=False
 num_epochs=500
-generator_path=/home/sam/experiments/app_transfer/29_07_256x256_g_pretrain/models/4.pt
+generator_path=/home/sam/experiments/app_transfer/18_08_fix_lr_dependency_data_aug/models/final.pt
 
 exp_name=$(date +"%d_%m")_${experiment}
 EXP_DIR=/home/sam/experiments/app_transfer/${exp_name}
