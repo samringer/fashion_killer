@@ -4,7 +4,7 @@ set -eu
 experiment=128x128_fix_data_aug_disc_pretrain
 learning_rate=1e-4
 batch_size=32
-over_train=False
+overtrain=False
 use_fp16=False
 num_epochs=500
 generator_path=/home/sam/experiments/app_transfer/18_08_fix_lr_dependency_data_aug/models/final.pt
@@ -23,7 +23,7 @@ python -m app_transfer.discriminator_pretrain \
     --exp_name=$exp_name \
     --batch_size=$batch_size \
     --learning_rate=$learning_rate \
-    --over_train=$over_train \
+    --overtrain=$overtrain \
     --use_fp16=$use_fp16 \
     --gen_path=$generator_path \
     --num_epochs=$num_epochs |& tee -a ${EXP_DIR}/train.log

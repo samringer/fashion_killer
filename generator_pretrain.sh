@@ -2,13 +2,10 @@
 set -eu
 
 # NOTES
-# TEST if mixed precision gets same results as fp32
-# Just l1 loss, checking if it keeps going down
-experiment=fp16_fixed_bug
+# Trying to use custom distributed code
+experiment=Multiprocess
 learning_rate=1e-4
-batch_size=32
-over_train=False
-use_fp16=True
+batch_size=8
 num_epochs=1000
 #load_checkpoint=/home/sam/experiments/DeformGAN/11_07_BIG_flipped_no_softmax/models/50000.chk
 
@@ -26,8 +23,7 @@ python -m app_transfer.generator_pretrain \
     --exp_name=$exp_name \
     --batch_size=$batch_size \
     --learning_rate=$learning_rate \
-    --over_train=$over_train \
-    --use_fp16=$use_fp16 \
+    --use_fp16 \
     --num_epochs=$num_epochs |& tee -a ${EXP_DIR}/train.log
     #--load_checkpoint=$load_checkpoint \
 

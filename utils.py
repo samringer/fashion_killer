@@ -19,7 +19,7 @@ flags.DEFINE_string('load_checkpoint', None,
 # TODO: Infer this from torch.cuda.is_available
 flags.DEFINE_boolean('use_cuda', True, "Whether to use GPU")
 flags.DEFINE_boolean('use_fp16', True, "Whether to use mixed precision")
-flags.DEFINE_boolean('over_train', False, "Overtrain on one datapoint")
+flags.DEFINE_boolean('overtrain', False, "Overtrain on one datapoint")
 flags.DEFINE_integer('checkpoint_interval', 20000,
                      "How often in train steps to checkpoint.")
 flags.DEFINE_integer('tb_log_interval', 30,
@@ -68,17 +68,17 @@ def load_checkpoint(model, optimizer, scheduler):
     return model, optimizer, scheduler, step_num
 
 
-def prepare_experiment_dirs():
+def prepare_experiment_dirs(task_path, exp_name):
     """
     Create the experiment directory if it does not already exists.
     Also create subdirectories to store saved models and logs.
     """
-    if not FLAGS.task_path:
+    if not task_path:
         raise RuntimeError("all training runs must define task_path")
-    if not FLAGS.exp_name:
+    if not exp_name:
         raise RuntimeError("all training runs must define exp_name")
 
-    exp_root_path = join(FLAGS.task_path, FLAGS.exp_name)
+    exp_root_path = join(task_path, exp_name)
     if not exists(exp_root_path):
         mkdir(exp_root_path)
 
@@ -93,12 +93,12 @@ def prepare_experiment_dirs():
     return models_path
 
 
-def get_tb_logger():
+def get_tb_logger(task_path, exp_name):
     """
     Return the logger used for logging to tensorboard.
     Ensures the logging directory exists.
     """
-    logs_path = join(FLAGS.task_path, FLAGS.exp_name, 'logs')
+    logs_path = join(task_path, exp_name, 'logs')
     assert exists(logs_path)
     return SummaryWriter(logs_path)
 
