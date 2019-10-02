@@ -6,7 +6,7 @@ from os.path import join, exists
 import numpy as np
 from absl import flags, logging
 import torch
-from tensorboardX import SummaryWriter
+#from tensorboardX import SummaryWriter
 
 FLAGS = flags.FLAGS
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -19,7 +19,7 @@ flags.DEFINE_string('load_checkpoint', None,
 # TODO: Infer this from torch.cuda.is_available
 flags.DEFINE_boolean('use_cuda', True, "Whether to use GPU")
 flags.DEFINE_boolean('use_fp16', True, "Whether to use mixed precision")
-flags.DEFINE_boolean('over_train', False, "Overtrain on one datapoint")
+flags.DEFINE_boolean('overtrain', False, "Overtrain on one datapoint")
 flags.DEFINE_integer('checkpoint_interval', 20000,
                      "How often in train steps to checkpoint.")
 flags.DEFINE_integer('tb_log_interval', 30,

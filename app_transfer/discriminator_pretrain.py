@@ -25,13 +25,12 @@ def train(unused_argv):
     models_path = prepare_experiment_dirs()
     set_seeds(128)
 
-    generator = Generator()
-    generator.load_state_dict(torch.load(FLAGS.gen_path))
+    generator = torch.load(FLAGS.gen_path)
     generator = generator.to(device)
     discriminator = Discriminator().to(device)
 
     dataset = AsosDataset(root_data_dir=FLAGS.data_dir,
-                          overtrain=FLAGS.over_train)
+                          overtrain=FLAGS.overtrain)
     dataloader = DataLoader(dataset, batch_size=FLAGS.batch_size,
                             shuffle=True, num_workers=6, pin_memory=True)
 
@@ -39,9 +38,9 @@ def train(unused_argv):
                              lr=FLAGS.learning_rate, betas=(0.5, 0.999))
 
     for step_num, batch in enumerate(dataloader):
-        if step_num >= 1000:
+        if step_num >= 1200:
             save_path = join(models_path, 'final.pt')
-            torch.save(discriminator.state_dict(), save_path)
+            torch.save(discriminator, save_path)
             return
 
         app_img = batch['app_img'].to(device)
@@ -49,10 +48,10 @@ def train(unused_argv):
         target_img = batch['target_img'].to(device)
         pose_img = batch['pose_img'].to(device)
 
-        app_img = nn.MaxPool2d(kernel_size=2)(app_img)
-        app_pose_img = nn.MaxPool2d(kernel_size=2)(app_pose_img)
-        target_img = nn.MaxPool2d(kernel_size=2)(target_img)
-        pose_img = nn.MaxPool2d(kernel_size=2)(pose_img)
+        #app_img = nn.MaxPool2d(kernel_size=2)(app_img)
+        #app_pose_img = nn.MaxPool2d(kernel_size=2)(app_pose_img)
+        #target_img = nn.MaxPool2d(kernel_size=2)(target_img)
+        #pose_img = nn.MaxPool2d(kernel_size=2)(pose_img)
 
         with torch.no_grad():
             gen_img = generator(app_img, app_pose_img, pose_img)

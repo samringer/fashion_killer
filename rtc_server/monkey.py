@@ -22,8 +22,8 @@ class Monkey:
     Handles all the shapeshifting!
     https://jackiechanadventures.fandom.com/wiki/Monkey_Talisman
     """
-    #generator_base_path = 'pretrained_models/01_08_model.pt'
-    generator_base_path = 'pretrained_models/17_08_128x128.pt'
+    generator_base_path = 'pretrained_models/01_08_model.pt'
+    #generator_base_path = 'pretrained_models/17_08_128x128.pt'
     rcnn_base_path = 'pretrained_models/pytorch_pose_detector.pt'
 
     def __init__(self):
