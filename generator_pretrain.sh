@@ -3,7 +3,7 @@ set -eu
 
 # NOTES
 # Trying to use custom distributed code
-experiment=Multiprocess
+experiment=TEST
 learning_rate=1e-4
 batch_size=8
 num_epochs=1000

@@ -1,15 +1,17 @@
 from os.path import join
+import argparse
 import pickle
+import time
 
-from absl import flags, app, logging
 import torch
 from torch import nn, optim
 from torch.optim.lr_scheduler import StepLR
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader
+import torch.distributed as dist
+from apex import amp
+from apex.parallel import DistributedDataParallel as DDP
 
-from app_transfer.model.generator import Generator
-from app_transfer.model.discriminator import Discriminator
 from app_transfer.dataset import AsosDataset
 from app_transfer.model.perceptual_loss_vgg import PerceptualLossVGG
 from utils import (prepare_experiment_dirs,
@@ -17,51 +19,63 @@ from utils import (prepare_experiment_dirs,
                    set_seeds,
                    device)
 
-FLAGS = flags.FLAGS
 
-flags.DEFINE_float('gen_lr', 1e-5, "Start lr of generator")
-flags.DEFINE_float('disc_lr', 1e-4, "Start lr of disciminator")
-flags.DEFINE_string("gen_path", None, "Path to initial generator")
-flags.DEFINE_string("disc_path", None, "Path to initial discriminator")
-
-
-def train(unused_argv):
+def train(args):
     """
     Trains a network to be able to generate images from img/pose
     pairs of asos data.
     """
-    models_path = prepare_experiment_dirs()
-    logger = get_tb_logger()
-    set_seeds(132)
+    if args.local_rank == 0:
+        last_step_time = time.time()
+        models_path = prepare_experiment_dirs(args.task_path,
+                                              args.exp_name)
+        tb_logger = get_tb_logger(args.task_path, args.exp_name)
 
+    if args.distributed:
+        torch.cuda.set_device(args.local_rank)
+        dist.init_process_group(backend='nccl', init_method='env://')
 
-    generator = Generator()
-    generator.load_state_dict(torch.load(FLAGS.gen_path))
-    generator = generator.to(device)
+    generator = torch.load(args.gen_path)
+    generator = generator.cuda()
 
-    discriminator = Discriminator()
-    discriminator.load_state_dict(torch.load(FLAGS.disc_path))
-    discriminator = discriminator.to(device)
+    discriminator = torch.load(args.disc_path)
+    discriminator = discriminator.cuda()
 
-    perc_loss_vgg = PerceptualLossVGG().to(device)
-    perc_loss_vgg.eval()
+    perceptual_loss_vgg = PerceptualLossVGG().cuda()
+    #perceptual_loss_vgg.eval()
 
-    dataset = AsosDataset(root_data_dir=FLAGS.data_dir,
-                          overtrain=FLAGS.over_train)
-    dataloader = DataLoader(dataset, batch_size=FLAGS.batch_size,
+    dataset = AsosDataset(root_data_dir=args.data_dir,
+                          overtrain=args.overtrain)
+    dataloader = DataLoader(dataset, batch_size=args.batch_size,
                             shuffle=True, num_workers=5, pin_memory=True)
 
     g_optimizer = optim.Adam(generator.parameters(),
-                             lr=FLAGS.gen_lr, betas=(0., 0.999))
+                             lr=args.gen_lr, betas=(0., 0.999))
     d_optimizer = optim.Adam(discriminator.parameters(),
-                             lr=FLAGS.disc_lr, betas=(0., 0.999))
+                             lr=args.disc_lr, betas=(0., 0.999))
 
-    g_lr_scheduler = StepLR(g_optimizer, step_size=40, gamma=0.8)
-    d_lr_scheduler = StepLR(d_optimizer, step_size=40, gamma=0.8)
+    g_lr_scheduler = StepLR(g_optimizer, step_size=50, gamma=0.8)
+    d_lr_scheduler = StepLR(d_optimizer, step_size=50, gamma=0.8)
+
+    if args.use_fp16:
+        [generator, discriminator, perceptual_loss_vgg], \
+        [g_optimizer, d_optimizer] = amp.initialize([generator,
+                                                     discriminator,
+                                                     perceptual_loss_vgg],
+                                                    [g_optimizer,
+                                                     d_optimizer],
+                                                    opt_level='O1')
+
+    if args.distributed:
+        generator = DDP(generator, delay_allreduce=True)
+        discriminator = DDP(discriminator, delay_allreduce=True)
+        perceptual_loss_vgg = DDP(perceptual_loss_vgg, delay_allreduce=True)
+        set_seeds(257 + args.local_rank)
+
 
     step_num = 0
-    if FLAGS.load_checkpoint:
-        chk_state = load_checkpoint()
+    if args.load_checkpoint:
+        chk_state = load_checkpoint(args)
         generator.load_state_dict(chk_state['generator'])
         discriminator.load_state_dict(chk_state['discriminator'])
         g_optimizer.load_state_dict(chk_state['g_optimizer'])
@@ -70,15 +84,13 @@ def train(unused_argv):
         d_lr_scheduler.load_state_dict(chk_state['d_lr_scheduler'])
         step_num = chk_state['step_num']
 
-    for epoch in range(FLAGS.num_epochs):
+    for epoch in range(args.num_epochs):
 
-        g_lr_scheduler.step()
-        d_lr_scheduler.step()
 
         # Save a generator every 5 epochs
-        if epoch % 5 == 0:
-            save_path = join(models_path, '{}.pt'.format(epoch))
-            torch.save(generator.state_dict(), save_path)
+        #if epoch % 5 == 0:
+        #    save_path = join(models_path, '{}.pt'.format(epoch))
+        #    torch.save(generator.state_dict(), save_path)
 
         for i, batch in enumerate(dataloader):
             batch = _prepare_batch_data(batch)
@@ -99,7 +111,12 @@ def train(unused_argv):
             d_loss = d_fake_loss.mean() + d_real_loss.mean()
 
             d_optimizer.zero_grad()
-            d_loss.backward()
+            if args.use_fp16:
+                with amp.scale_loss(d_loss, d_optimizer) as scaled_loss:
+                    scaled_loss.backward()
+            else:
+                d_loss.backward()
+            clip_grad_norm_(discriminator.parameters(), 1)
             d_optimizer.step()
 
             # Train generator every second step
@@ -109,8 +126,8 @@ def train(unused_argv):
                                                   app_pose_img,
                                                   pose_img,
                                                   gen_img).mean()
-                perceptual_loss = 0.02 * perc_loss_vgg(gen_img,
-                                                       target_img)
+                perceptual_loss = 0.02 * perceptual_loss_vgg(gen_img,
+                                                             target_img)
                 l1_loss = nn.L1Loss()(gen_img, target_img)
                 #h_loss = 10 * discriminator.hierachy_loss(app_img,
                 #                                          app_pose_img,
@@ -121,16 +138,22 @@ def train(unused_argv):
                 g_loss = l1_loss + gan_loss + perceptual_loss #+ h_loss
 
                 g_optimizer.zero_grad()
-                g_loss.backward()
-                clip_grad_norm_(generator.parameters(), 5)
+                if args.use_fp16:
+                    with amp.scale_loss(g_loss, g_optimizer) as scaled_loss:
+                        scaled_loss.backward()
+                else:
+                    g_loss.backward()
+                clip_grad_norm_(generator.parameters(), 1)
                 g_optimizer.step()
 
-            if step_num % FLAGS.tb_log_interval == 0:
-                log_results(epoch, step_num, logger, gen_img,
+            if step_num % args.tb_log_interval == 0 \
+               and args.local_rank == 0:
+                log_results(epoch, step_num, tb_logger, gen_img,
                             d_loss, g_loss, l1_loss, gan_loss,
                             perceptual_loss) #, h_loss)
 
-            if step_num % FLAGS.checkpoint_interval == 0:
+            if step_num % args.checkpoint_interval == 0 \
+               and args.local_rank == 0:
                 checkpoint_state = {
                     'generator': generator.state_dict(),
                     'discriminator': discriminator.state_dict(),
@@ -140,9 +163,18 @@ def train(unused_argv):
                     'g_lr_scheduler': g_lr_scheduler.state_dict(),
                     'd_lr_scheduler': d_lr_scheduler.state_dict()
                 }
-                save_checkpoint(checkpoint_state)
-            logging.info(f"{step_num} {d_loss.item():.4f} {g_loss.item():.4f}")
+                save_checkpoint(checkpoint_state, args)
+
+            if args.local_rank == 0:
+                step_time = time.time() - last_step_time
+                last_step_time = time.time()
+                print(f"{step_num} d_loss: {d_loss.item():.4f} g_loss: {g_loss.item():.4f} in {step_time:.2f}s")
+
             step_num += 1
+
+        # Step at the end of each epoch
+        g_lr_scheduler.step()
+        d_lr_scheduler.step()
 
 
 def _prepare_batch_data(batch):
@@ -151,10 +183,10 @@ def _prepare_batch_data(batch):
     target_img = batch['target_img'].to(device)
     pose_img = batch['pose_img'].to(device)
 
-    app_img = nn.MaxPool2d(kernel_size=2)(app_img)
-    app_pose_img = nn.MaxPool2d(kernel_size=2)(app_pose_img)
-    target_img = nn.MaxPool2d(kernel_size=2)(target_img)
-    pose_img = nn.MaxPool2d(kernel_size=2)(pose_img)
+    #app_img = nn.MaxPool2d(kernel_size=2)(app_img)
+    #app_pose_img = nn.MaxPool2d(kernel_size=2)(app_pose_img)
+    #target_img = nn.MaxPool2d(kernel_size=2)(target_img)
+    #pose_img = nn.MaxPool2d(kernel_size=2)(pose_img)
 
     return app_img, app_pose_img, target_img, pose_img
 
@@ -168,39 +200,61 @@ def log_results(epoch, step_num, writer, gen_img, d_loss,
     gen_img = gen_img[0].detach().cpu()
     img_file_name = 'generated_img/{}'.format(epoch)
     writer.add_image(img_file_name, gen_img, step_num)
-    writer.add_scalar('Train/g_loss', g_loss, step_num)
-    writer.add_scalar('Train/l1_loss', l1_loss, step_num)
-    writer.add_scalar('Train/gan_loss', gan_loss, step_num)
-    writer.add_scalar('Train/d_loss', d_loss, step_num)
-    writer.add_scalar('Train/perceptual_loss', perceptual_loss, step_num)
+    writer.add_scalar('Train/g_loss', g_loss.item(), step_num)
+    writer.add_scalar('Train/l1_loss', l1_loss.item(), step_num)
+    writer.add_scalar('Train/gan_loss', gan_loss.item(), step_num)
+    writer.add_scalar('Train/d_loss', d_loss.item(), step_num)
+    writer.add_scalar('Train/perceptual_loss', perceptual_loss.item(), step_num)
     #writer.add_scalar('Train/hierachy_loss', h_loss, step_num)
 
 
-def save_checkpoint(checkpoint_state):
+def save_checkpoint(checkpoint_state, args):
     """
     Checkpoint the train_state.
     Saves them all together in a tuple representing the train state.
     """
-    exp_dir = join(FLAGS.task_path, FLAGS.exp_name)
+    exp_dir = join(args.task_path, args.exp_name)
     step_num = checkpoint_state['step_num']
     save_path = join(exp_dir, 'models', '{}.chk'.format(step_num))
 
     with open(save_path, 'wb') as out_f:
         pickle.dump(checkpoint_state, out_f)
 
-    logging.info('Checkpointed at {}'.format(save_path))
+    print('Checkpointed at {}'.format(save_path))
 
 
-def load_checkpoint():
+def load_checkpoint(args):
     """
     Load the generator, discriminator and their optimizer state dicts
     the path provided by FLAGS.load_checkpoint.
     """
-    with open(FLAGS.load_checkpoint, 'rb') as in_f:
+    with open(args.load_checkpoint, 'rb') as in_f:
         checkpoint_state = pickle.load(in_f)
-    logging.info('Loaded checkpoint {}'.format(FLAGS.load_checkpoint))
+    print('Loaded checkpoint {}'.format(args.load_checkpoint))
     return checkpoint_state
 
 
 if __name__ == "__main__":
-    app.run(train)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('task_path', type=str)
+    parser.add_argument('exp_name', type=str)
+    parser.add_argument('gen_path', type=str)
+    parser.add_argument('disc_path', type=str)
+    parser.add_argument('--data_dir',
+                        default='/home/sam/data/asos/1307_clean/train')
+    parser.add_argument('--batch_size', type=int, default=4)
+    parser.add_argument('--gen_lr', type=float, default=1e-4)
+    parser.add_argument('--disc_lr', type=float, default=1e-4)
+    parser.add_argument('--num_epochs', type=int, default=2)
+    parser.add_argument('--local_rank', type=int, default=0)
+    parser.add_argument('--checkpoint_interval', type=int,
+                        default=20000)
+    parser.add_argument('--tb_log_interval', type=int, default=30)
+    parser.add_argument('--load_checkpoint', type=str, default=None)
+    parser.add_argument('--distributed', action='store_true')
+    parser.add_argument('--use_fp16', action='store_true')
+    parser.add_argument('--overtrain', action='store_true')
+    train_args = parser.parse_args()
+
+    torch.backends.cudnn.benchmark = True
+    train(train_args)

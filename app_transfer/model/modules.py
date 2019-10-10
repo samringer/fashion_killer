@@ -36,6 +36,7 @@ class GenDecAttnBlock(nn.Module):
         return custom_forward
 
     def forward(self, app_enc, app_pose_enc, pose_enc, prev_inp):
+        #x = self.attn_mech(app_enc, app_pose_enc, pose_enc)
         x = chk.checkpoint(self.custom(self.attn_mech), app_enc,
                            app_pose_enc, pose_enc)
         prev_inp = nn.Upsample(scale_factor=2)(prev_inp)

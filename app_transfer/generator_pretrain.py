@@ -6,14 +6,14 @@ import pickle
 
 import argparse
 import torch
+from absl import logging
 from torch import nn, optim
 from torch.optim.lr_scheduler import StepLR
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader
 import torch.distributed as dist
 from apex import amp
-import torch.distributed as dist
-from torch import multiprocessing
+from apex.parallel import DistributedDataParallel as DDP
 from torchsummary import summary
 
 from app_transfer.model.generator import Generator
@@ -25,39 +25,26 @@ from utils import (prepare_experiment_dirs,
                    device)
 
 
-def init_process(rank, size, args, fn):
-    """ Initialize the distributed environment. """
-    os.environ['MASTER_ADDR'] = '127.0.0.1'
-    os.environ['MASTER_PORT'] = '29500'
-    dist.init_process_group('gloo', rank=rank, world_size=size)
-    fn(rank, args)
-
-
-def average_gradients(model):
-    size = float(dist.get_world_size())
-    for param in model.parameters():
-        dist.all_reduce(param.grad.data, op=dist.reduce_op.SUM)
-        param.grad.data /= size
-
-
-def train_process(rank, args):
+def train(args):
     """
     Trains a network to be able to generate images from img/pose
     pairs of asos data.
     """
 
-    if rank == 0:
+    if args.local_rank == 0:
         models_path = prepare_experiment_dirs(args.task_path,
                                               args.exp_name)
         tb_logger = get_tb_logger(args.task_path, args.exp_name)
 
-    torch.cuda.set_device(rank)
+    if args.distributed:
+        torch.cuda.set_device(args.local_rank)
+        dist.init_process_group(backend='nccl', init_method='env://')
 
     set_seeds(257)
     generator = Generator().cuda()
     perceptual_loss_vgg = PerceptualLossVGG().cuda()
 
-    if rank == 0:
+    if args.local_rank == 0:
         dummy_inp_sz = [(3, 256, 256), (21, 256, 256), (21, 256, 256)]
         summary(generator, input_size=dummy_inp_sz)
         # Doing a summary skrews the rng so reset seedsummy_input_size)
@@ -68,29 +55,33 @@ def train_process(rank, args):
     if args.use_fp16:
         [generator, perceptual_loss_vgg], g_optimizer = amp.initialize([generator, perceptual_loss_vgg], g_optimizer, opt_level='O1')
 
-    set_seeds(257 + rank)
+    if args.distributed:
+        generator = DDP(generator)
+        perceptual_loss_vgg = DDP(perceptual_loss_vgg)
+        set_seeds(257 + args.local_rank)
+
 
     dataset = AsosDataset(root_data_dir=args.data_dir,
                           overtrain=args.overtrain)
 
     dataloader = DataLoader(dataset, batch_size=args.batch_size,
-                            shuffle=True, num_workers=0, pin_memory=False)
+                            shuffle=True, num_workers=5, pin_memory=True)
 
     lr_scheduler = StepLR(g_optimizer, step_size=40, gamma=0.8)
 
     step_num = 0
     # TODO: Work out how to get this back in
     #if FLAGS.load_checkpoint:
-        #    checkpoint_state = load_checkpoint()
-        #    generator.load_state_dict(checkpoint_state['generator'])
-        #    g_optimizer.load_state_dict(checkpoint_state['g_optimizer'])
-        #    lr_scheduler.load_state_dict(checkpoint_state['lr_scheduler'])
-        #    step_num = checkpoint_state['step_num']
+    #    checkpoint_state = load_checkpoint()
+    #    generator.load_state_dict(checkpoint_state['generator'])
+    #    g_optimizer.load_state_dict(checkpoint_state['g_optimizer'])
+    #    lr_scheduler.load_state_dict(checkpoint_state['lr_scheduler'])
+    #    step_num = checkpoint_state['step_num']
 
     for epoch in range(args.num_epochs):
-        #if epoch % 2 == 0 and rank == 0:
-        #    save_path = join(models_path, '{}.pt'.format(epoch))
-        #    torch.save(generator.state_dict(), save_path)
+        if epoch % 2 == 0 and args.local_rank == 0:
+            save_path = join(models_path, '{}.pt'.format(epoch))
+            torch.save(generator.state_dict(), save_path)
 
         for batch in dataloader:
             # TODO: Change these cudas to the device thing
@@ -114,18 +105,16 @@ def train_process(rank, args):
             else:
                 loss.backward()
 
-            average_gradients(generator)
-
             clip_grad_norm_(generator.parameters(), 5)
             g_optimizer.step()
             g_optimizer.zero_grad()
 
             if step_num % args.tb_log_interval == 0 \
-               and rank == 0:
+               and args.local_rank == 0:
                 tb_log_results(epoch, step_num, tb_logger, gen_img, loss, l1_loss, perceptual_loss)
 
             if step_num % args.checkpoint_interval == 0 \
-               and rank == 0:
+               and args.local_rank == 0:
                 sleep(5)
                 checkpoint_state = {
                     'generator': generator.state_dict(),
@@ -136,7 +125,7 @@ def train_process(rank, args):
                 sleep(5)
                 save_checkpoint(checkpoint_state, args.task_path,
                                 args.exp_name)
-            print(f"{step_num} {loss.item():.4f} {rank}")
+            print(f"{step_num} {loss.item():.4f} {args.local_rank}")
             step_num += 1
         lr_scheduler.step()
 
@@ -177,8 +166,8 @@ def load_checkpoint(chk_path):
     """
     with open(chk_path, 'rb') as in_f:
         checkpoint_state = pickle.load(in_f)
-        print('Loaded checkpoint {}'.format(chk_path))
-        return checkpoint_state
+    print('Loaded checkpoint {}'.format(chk_path))
+    return checkpoint_state
 
 
 if __name__ == "__main__":
@@ -190,35 +179,14 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', type=int, default=0)
     parser.add_argument('--learning_rate', type=float, default=1e-4)
     parser.add_argument('--num_epochs', type=int, default=2)
-    parser.add_argument('--num_proc', type=int, default=2)
+    parser.add_argument('--local_rank', type=int, default=0)
     parser.add_argument('--checkpoint_interval', type=int,
                         default=20000)
     parser.add_argument('--tb_log_interval', type=int, default=30)
     parser.add_argument('--distributed', action='store_true')
     parser.add_argument('--use_fp16', action='store_true')
     parser.add_argument('--overtrain', action='store_true')
-    args = parser.parse_args()
+    train_args = parser.parse_args()
 
-    #processes = []
-    gpus = list(range(args.num_proc))
-    size = len(gpus)
-    ctx = multiprocessing.get_context('spawn')
-
-    processes = [ctx.Process(target=init_process,
-                             args=(rank, size, args, train_process))
-                 for rank in gpus]
-    for process in processes:
-        process.start()
-    for process in processes:
-        process.join()
-
-    """
-    for rank in range(args.num_proc):
-        p = Process(target=init_processes, args=(rank, size, args,
-                                                 train_process))
-        p.start()
-        processes.append(p)
-
-    for p in processes:
-        p.join()
-    """
+    torch.backends.cudnn.benchmark = True
+    train(train_args)
