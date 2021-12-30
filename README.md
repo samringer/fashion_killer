@@ -10,4 +10,4 @@ Quite a lot going on here:
 - **Front-end web app:** rtc_server/client.js
 - **RTC server:** rtc_server/server.py
  
-I'm particularly proud of the RTC server. The server streams data from the webcam straight into a remote GPU server. It then uses custom threading, queueing and activation caching so the app can run at a decent frame rate in real-time (see gif above). 
+I'm particularly proud of the RTC server. It streams data from the webcam straight into a remote GPU server. It then uses custom threading, queueing and activation caching so the app can run at a decent frame rate in real-time (see gif above). 
