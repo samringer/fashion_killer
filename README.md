@@ -1,6 +1,6 @@
 # [Fashion Killer](https://www.youtube.com/watch?v=nPhe9Ah8rKA)
 ![](FK.gif)  
-^^^ The above is dynamic and can do apperance transfer on any input images, not just the seven examples shown.
+^^^ The above is dynamic and can do appearance transfer on any input images, not just the seven examples shown.
 
 Quite a lot going on here:
 - **Scrape from asos.com:** prepare_asos_data/
