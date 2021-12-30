@@ -1,5 +1,5 @@
 # [Fashion Killer](https://www.youtube.com/watch?v=nPhe9Ah8rKA)
-![](FK.gif)
+![](FK.gif)  
 ^^^ The above is dynamic and can do apperance transfer on any input images, not just the seven examples shown.
 
 Quite a lot going on here:
@@ -9,3 +9,4 @@ Quite a lot going on here:
 - **Putting them both together to perform appearance transfer:** rtc_server/monkey.py
 - **Front-end to app:** rtc_server/client.js
 - **RTC server:** rtc_server/server.py
+-   I'm particularly proud of this bit. The server streams data from the webcam straight into a remote GPU server. It then uses custom threading, queuing and activation caching so the app can run at a decent frame rate in real-time (see gif above).
